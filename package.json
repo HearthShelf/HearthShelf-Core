@@ -10,5 +10,5 @@
     "./lib/*": "./src/lib/*.ts"
   },
   "sideEffects": false,
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

@@ -38,11 +38,14 @@ the new submodule pointer. The `README.md` has the per-repo wiring recipe.
 
 ## Licensing
 
-AGPLv3, same as the rest of the ecosystem (see `LICENSE.md`).
+**MIT** (see `LICENSE.md`). Permissive on purpose: as a shared library consumed
+by both the MIT mobile app and the AGPLv3 servers, MIT is the only license that
+links cleanly into all of them (MIT code can be included in AGPL projects; the
+reverse is not true). Keep it MIT - don't add AGPL-licensed code here.
 
 ## Related repositories
 
-All AGPLv3.
+Servers are AGPLv3; the app + this shared lib are MIT.
 
 | Repo | What it is |
 | --- | --- |

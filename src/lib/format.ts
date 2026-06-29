@@ -45,6 +45,7 @@ export function fmtSessDate(ms: number): { day: string; time: string } {
 
 // Clock-style timestamp for chapter offsets. 3725 -> "1:02:05", 125 -> "2:05"
 export function formatTimestamp(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
   const total = Math.round(seconds)
   const h = Math.floor(total / 3600)
   const m = Math.floor((total % 3600) / 60)
