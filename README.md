@@ -74,11 +74,16 @@ web repos (`HearthShelf`, `HearthShelf-WebApp`):
    - **HearthShelf** (the canonical source): its `src/api/types.ts` IS what core
      was copied from. Either replace its body with `export * from '@hearthshelf/core'`
      (keeps `@/api/types` importers working), or repoint importers to core and
-     delete it. Same for `src/lib/{format,letterBucket,libraryFilters}.ts`.
+     delete it. Same for
+     `src/lib/{format,letterBucket,libraryFilters,discover,questgiver}.ts`
+     (discover + questgiver now live in core too - HearthShelf still has the
+     local copies until it's wired).
    - **HearthShelf-WebApp** (the messy one): its ABS types are inline/scattered
      across `src/api/abs*.ts` with **naming drift** (`AbsLibraryItem` vs core's
      `ABSLibraryItem`). Repoint to core's names; expect to touch ~10 files and fix
-     the casing. Delete its copies of `format`/`letterBucket`/`libraryFilters`.
+     the casing. Delete its copies of the shared lib files; pull `discover` +
+     `questgiver` from core (WebApp doesn't have them yet - this is how it gets
+     the discovery/taste features).
 
 5. **Typecheck.** Expect core's stricter (more correct) types to surface a few
    latent bugs - e.g. nullable fields the local subset typed as non-null. That's
