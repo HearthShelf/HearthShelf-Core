@@ -1,0 +1,14 @@
+{
+  "name": "@hearthshelf/core",
+  "version": "0.1.0",
+  "description": "Shared types and pure logic for HearthShelf (web, hosted, mobile). No React, no DOM, no build step - consumed directly as TypeScript source via a path alias.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts",
+    "./lib/*": "./src/lib/*.ts"
+  },
+  "sideEffects": false,
+  "license": "UNLICENSED"
+}
