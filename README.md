@@ -45,6 +45,58 @@ After pulling changes that bump the submodule pointer:
 git submodule update --remote packages/core   # or: npm run sync-core
 ```
 
+## Wiring recipe (for the remaining repos)
+
+`HearthShelf-Mobile` is already wired (reference implementation). To wire the two
+web repos (`HearthShelf`, `HearthShelf-WebApp`):
+
+1. **Add the submodule:**
+   ```bash
+   git submodule add https://github.com/HearthShelf/HearthShelf-Core.git packages/core
+   ```
+
+2. **Add the path alias** in `tsconfig.json`:
+   ```jsonc
+   "paths": {
+     "@/*": ["./src/*"],
+     "@hearthshelf/core": ["./packages/core/src/index.ts"],
+     "@hearthshelf/core/*": ["./packages/core/src/*"]
+   }
+   ```
+
+3. **Teach the bundler the alias.** These are Vite apps, so add to `vite.config.ts`:
+   ```ts
+   resolve: { alias: { '@hearthshelf/core': path.resolve(__dirname, 'packages/core/src') } }
+   ```
+   (Mobile used Expo's `experiments.tsconfigPaths`, so no bundler change there.)
+
+4. **Repoint imports + delete the duplicates:**
+   - **HearthShelf** (the canonical source): its `src/api/types.ts` IS what core
+     was copied from. Either replace its body with `export * from '@hearthshelf/core'`
+     (keeps `@/api/types` importers working), or repoint importers to core and
+     delete it. Same for `src/lib/{format,letterBucket,libraryFilters}.ts`.
+   - **HearthShelf-WebApp** (the messy one): its ABS types are inline/scattered
+     across `src/api/abs*.ts` with **naming drift** (`AbsLibraryItem` vs core's
+     `ABSLibraryItem`). Repoint to core's names; expect to touch ~10 files and fix
+     the casing. Delete its copies of `format`/`letterBucket`/`libraryFilters`.
+
+5. **Typecheck.** Expect core's stricter (more correct) types to surface a few
+   latent bugs - e.g. nullable fields the local subset typed as non-null. That's
+   the feature working. (Mobile hit exactly one: `displayAuthor: string | null`.)
+
+6. **Add the sync script** to `package.json`:
+   ```json
+   "sync-core": "git submodule update --remote packages/core"
+   ```
+
+### Cloning a wired repo
+
+```bash
+git clone --recursive https://github.com/HearthShelf/<repo>.git
+# or, if already cloned:
+git submodule update --init --recursive
+```
+
 ## Rules for this package
 
 - **No React, no DOM, no Node APIs.** Types, pure functions, and constants only.
