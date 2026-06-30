@@ -267,6 +267,22 @@ export interface ABSLibraryItemDetail extends Omit<ABSLibraryItem, 'media'> {
   media: ABSBookMediaDetail
 }
 
+// Editable book metadata - the body of PATCH /api/items/:id/media. Every field
+// is optional; only the keys present are written. null clears a field.
+export interface ABSItemMetadataPatch {
+  title?: string | null
+  subtitle?: string | null
+  description?: string | null
+  publishedYear?: string | null
+  publisher?: string | null
+  language?: string | null
+  isbn?: string | null
+  asin?: string | null
+  genres?: string[]
+  explicit?: boolean
+  abridged?: boolean
+}
+
 // --- Progress (/api/me/items-in-progress) ---
 
 export interface ABSItemsInProgressResponse {
