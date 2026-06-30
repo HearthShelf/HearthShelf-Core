@@ -375,6 +375,9 @@ export interface ABSApiKey {
   userId: string
   user?: ABSApiKeyUserRef
   createdByUser?: ABSApiKeyUserRef | null
+  // ABS returns the raw token on `apiKey` only on the create response; it is
+  // never echoed on subsequent list reads.
+  apiKey?: string
 }
 
 export interface ABSApiKeysResponse {
