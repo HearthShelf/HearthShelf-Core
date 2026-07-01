@@ -603,6 +603,39 @@ export interface ABSListeningStats {
   today: number
 }
 
+// --- Listening stats (HearthShelf backend, /hs/stats) ---
+// Computed server-side from ABS /api/me/listening-stats so every client (mobile,
+// web, absorb, widgets) shows identical numbers instead of each reimplementing
+// the streak/week walk. Clients that hit an older server without /hs/stats fall
+// back to reading raw ABSListeningStats and computing via lib/stats.ts.
+
+/** One book's all-time listening time, for the "Most listened" list. */
+export interface HSStatsItem {
+  id: string
+  title: string
+  author: string
+  narrator: string
+  timeSec: number
+}
+
+export interface HSListeningStats {
+  /** All-time seconds listened. */
+  totalTimeSec: number
+  /** Seconds listened today (caller-local). */
+  todaySec: number
+  /** Seconds listened across the last 7 local days. */
+  weekSec: number
+  /** Consecutive days with any listening, ending today (or yesterday if today
+   * is still zero). See computeStreak. */
+  dayStreak: number
+  /** Distinct days with any listening (byDay keys with >0). */
+  activeDays: number
+  /** Raw seconds-per-day map (YYYY-MM-DD), for the week bars + heatmap. */
+  byDay: Record<string, number>
+  /** Per-item all-time listening, sorted desc at build time. */
+  mostListened: HSStatsItem[]
+}
+
 // --- Social (HearthShelf backend, /hs/social/*) ---
 // Cross-user data ABS won't serve to non-admins; read from ABS's database by our
 // backend. `available` is false when ABS's db isn't mapped, so the UI hides it.

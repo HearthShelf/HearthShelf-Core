@@ -43,6 +43,35 @@ export function fmtSessDate(ms: number): { day: string; time: string } {
   return { day, time }
 }
 
+// A stable cover hue for a book, used to typeset a fallback cover and drive the
+// cover-glow when real artwork is missing or hasn't loaded. ABS gives no single
+// cover color, so we derive a deterministic one from a seed (the item id): hash
+// the seed and pick from the HearthShelf cover palette (warm-neutral duotones,
+// never navy/muddy - matching the design system's --chart / cover hues).
+const COVER_PALETTE = [
+  '#356b78', // teal
+  '#a8482b', // rust
+  '#6f6a35', // olive
+  '#46508c', // indigo
+  '#7a3a56', // plum
+  '#2f6b50', // pine
+  '#8a6a2f', // amber
+  '#5e4a8c', // violet
+  '#2f5a6b', // slate-teal
+  '#3f6b4a', // moss
+] as const
+
+export function coverHue(seed: string): string {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+  return COVER_PALETTE[Math.abs(h) % COVER_PALETTE.length]
+}
+
+// First visible character of a title, for the oversized typeset-cover initial.
+export function coverInitial(title: string): string {
+  return (title || '?').trim().charAt(0).toUpperCase() || '?'
+}
+
 // Clock-style timestamp for chapter offsets. 3725 -> "1:02:05", 125 -> "2:05"
 export function formatTimestamp(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
