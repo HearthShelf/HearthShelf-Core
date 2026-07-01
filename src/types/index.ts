@@ -2,3 +2,4 @@
 // for every HearthShelf surface (self-hosted web, hosted web, mobile).
 export * from './abs'
 export * from './queue'
+export * from './settings'
