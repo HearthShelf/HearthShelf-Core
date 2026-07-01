@@ -548,6 +548,14 @@ export interface ABSMediaProgress {
   isFinished: boolean
 }
 
+// GET /api/me - the caller's full progress list, for library filter chips
+// (in progress / finished) that need per-item state the minified item list
+// doesn't carry.
+export interface ABSMeResponse {
+  id: string
+  mediaProgress: ABSMediaProgress[]
+}
+
 export interface ABSBookmark {
   libraryItemId: string
   title: string
