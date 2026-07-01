@@ -554,6 +554,7 @@ export interface ABSMediaProgress {
 export interface ABSMeResponse {
   id: string
   mediaProgress: ABSMediaProgress[]
+  bookmarks?: ABSBookmark[]
 }
 
 export interface ABSBookmark {
