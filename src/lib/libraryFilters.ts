@@ -35,20 +35,17 @@ export const FILTER_GROUPS: FilterGroup[] = [
   {
     id: 'authors',
     label: 'Author',
-    values: (items) =>
-      uniqSorted(items.flatMap((i) => splitNames(i.media.metadata.authorName))),
+    values: (items) => uniqSorted(items.flatMap((i) => splitNames(i.media.metadata.authorName))),
   },
   {
     id: 'narrators',
     label: 'Narrator',
-    values: (items) =>
-      uniqSorted(items.flatMap((i) => splitNames(i.media.metadata.narratorName))),
+    values: (items) => uniqSorted(items.flatMap((i) => splitNames(i.media.metadata.narratorName))),
   },
   {
     id: 'series',
     label: 'Series',
-    values: (items) =>
-      uniqSorted(items.map((i) => i.media.metadata.seriesName).filter(Boolean)),
+    values: (items) => uniqSorted(items.map((i) => i.media.metadata.seriesName).filter(Boolean)),
   },
   {
     id: 'decade',
@@ -58,7 +55,7 @@ export const FILTER_GROUPS: FilterGroup[] = [
         items
           .map((i) => Number(i.media.metadata.publishedYear))
           .filter((y) => y > 0)
-          .map((y) => `${Math.floor(y / 10) * 10}s`)
+          .map((y) => `${Math.floor(y / 10) * 10}s`),
       ),
   },
   {
@@ -93,7 +90,7 @@ export function filterLabel(f: string): string {
 export function applyLibraryFilter(
   items: ABSLibraryItem[],
   f: string,
-  progressOf: ProgressLookup
+  progressOf: ProgressLookup,
 ): ABSLibraryItem[] {
   if (f === 'all') return items
   if (f === 'explicit') return items.filter((b) => b.media.metadata.explicit)
@@ -105,9 +102,7 @@ export function applyLibraryFilter(
     case 'authors':
       return items.filter((b) => splitNames(b.media.metadata.authorName).includes(val))
     case 'narrators':
-      return items.filter((b) =>
-        splitNames(b.media.metadata.narratorName).includes(val)
-      )
+      return items.filter((b) => splitNames(b.media.metadata.narratorName).includes(val))
     case 'series':
       return items.filter((b) => b.media.metadata.seriesName === val)
     case 'decade':
@@ -134,19 +129,6 @@ export function applyLibraryFilter(
 }
 
 // Common sorts first, the long tail grouped under "More".
-export const SORT_COMMON = [
-  'Date Added',
-  'Title',
-  'Author',
-  'Published Year',
-  'Duration',
-] as const
-export const SORT_MORE = [
-  'Author (Last, First)',
-  'Size',
-  'Progress',
-  'Random',
-] as const
-export type LibrarySort =
-  | (typeof SORT_COMMON)[number]
-  | (typeof SORT_MORE)[number]
+export const SORT_COMMON = ['Date Added', 'Title', 'Author', 'Published Year', 'Duration'] as const
+export const SORT_MORE = ['Author (Last, First)', 'Size', 'Progress', 'Random'] as const
+export type LibrarySort = (typeof SORT_COMMON)[number] | (typeof SORT_MORE)[number]

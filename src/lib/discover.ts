@@ -36,7 +36,7 @@ interface ItemState {
 
 function statesOf(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>
+  progressById: Map<string, ABSMediaProgress>,
 ): ItemState[] {
   return items.map((item) => {
     const p = progressById.get(item.id)
@@ -47,10 +47,7 @@ function statesOf(
 }
 
 // Authors/narrators the listener finishes most (>= 2 finished).
-function topBy(
-  states: ItemState[],
-  key: (i: ABSLibraryItem) => string
-): string[] {
+function topBy(states: ItemState[], key: (i: ABSLibraryItem) => string): string[] {
   const counts = new Map<string, number>()
   for (const s of states) {
     if (!s.finished) continue
@@ -86,7 +83,7 @@ export interface DiscoverSummary {
 // Unstarted owned books as AI-shelf candidates.
 export function discoverCandidates(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>
+  progressById: Map<string, ABSMediaProgress>,
 ): DiscoverCandidate[] {
   return statesOf(items, progressById)
     .filter((s) => s.unstarted)
@@ -105,7 +102,7 @@ export function discoverCandidates(
 // Build the history summary for the monthly AI shelf prompt.
 export function buildDiscoverSummary(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>
+  progressById: Map<string, ABSMediaProgress>,
 ): DiscoverSummary {
   const profile = qgBuildProfile(qgBooks(items, progressById))
   const states = statesOf(items, progressById)
@@ -126,7 +123,7 @@ export function buildDiscoverSummary(
 // Build all Discover shelves in priority order, de-duping books across rows.
 export function buildDiscoverShelves(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>
+  progressById: Map<string, ABSMediaProgress>,
 ): { shelves: DiscoverShelf[]; profile: QgProfile } {
   const profile = qgBuildProfile(qgBooks(items, progressById))
   const states = statesOf(items, progressById)
@@ -181,10 +178,7 @@ export function buildDiscoverShelves(
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s)
     .map((x) => x.it)
-  push(
-    { id: 'recommended', label: 'Recommended for you', icon: 'recommend' },
-    ranked
-  )
+  push({ id: 'recommended', label: 'Recommended for you', icon: 'recommend' }, ranked)
 
   // 1. Top genre(s) - unstarted books in the listener's strongest buckets.
   const topGenres = profile.listened
@@ -194,7 +188,7 @@ export function buildDiscoverShelves(
   for (const g of topGenres) {
     push(
       { id: 'genre-' + g, label: `Because you love ${g}`, icon: 'local_fire_department' },
-      unstarted.filter((it) => genresOf(it).includes(g))
+      unstarted.filter((it) => genresOf(it).includes(g)),
     )
   }
 
@@ -202,7 +196,7 @@ export function buildDiscoverShelves(
   for (const author of topBy(states, (i) => i.media.metadata.authorName).slice(0, 2)) {
     push(
       { id: 'author-' + author, label: `More from ${author}`, icon: 'person' },
-      unstarted.filter((it) => it.media.metadata.authorName.trim() === author)
+      unstarted.filter((it) => it.media.metadata.authorName.trim() === author),
     )
   }
 
@@ -210,8 +204,12 @@ export function buildDiscoverShelves(
   const topNarrator = topBy(states, (i) => i.media.metadata.narratorName)[0]
   if (topNarrator) {
     push(
-      { id: 'narrator-' + topNarrator, label: `Narrated by ${topNarrator}`, icon: 'record_voice_over' },
-      unstarted.filter((it) => it.media.metadata.narratorName.trim() === topNarrator)
+      {
+        id: 'narrator-' + topNarrator,
+        label: `Narrated by ${topNarrator}`,
+        icon: 'record_voice_over',
+      },
+      unstarted.filter((it) => it.media.metadata.narratorName.trim() === topNarrator),
     )
   }
 
@@ -231,8 +229,12 @@ export function buildDiscoverShelves(
   // 5. Revisit a cold genre - owned a lot, barely played.
   if (profile.cold) {
     push(
-      { id: 'cold-' + profile.cold.genre, label: `Revisit ${profile.cold.genre}`, icon: 'swap_horiz' },
-      unstarted.filter((it) => genresOf(it).includes(profile.cold!.genre))
+      {
+        id: 'cold-' + profile.cold.genre,
+        label: `Revisit ${profile.cold.genre}`,
+        icon: 'swap_horiz',
+      },
+      unstarted.filter((it) => genresOf(it).includes(profile.cold!.genre)),
     )
   }
 
@@ -240,7 +242,7 @@ export function buildDiscoverShelves(
   //    so a non-empty library never shows an empty Discover.
   push(
     { id: 'recent', label: 'Back to your library', icon: 'library_books' },
-    [...unstarted].sort((a, b) => b.addedAt - a.addedAt)
+    [...unstarted].sort((a, b) => b.addedAt - a.addedAt),
   )
 
   return { shelves, profile }

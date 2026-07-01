@@ -37,11 +37,25 @@ export type SettingDef =
       pattern?: RegExp
       maxLen?: number
     }
-  | { key: string; scope: SettingScope; secret?: boolean; type: 'enum'; default: string; values: readonly string[] }
+  | {
+      key: string
+      scope: SettingScope
+      secret?: boolean
+      type: 'enum'
+      default: string
+      values: readonly string[]
+    }
   // Tri-state: a boolean that may also be null (user never chose).
   | { key: string; scope: SettingScope; secret?: boolean; type: 'triBool'; default: boolean | null }
   // Arbitrary shape (e.g. queueAutoRules) validated by a predicate.
-  | { key: string; scope: SettingScope; secret?: boolean; type: 'json'; default: unknown; validate: (v: unknown) => boolean }
+  | {
+      key: string
+      scope: SettingScope
+      secret?: boolean
+      type: 'json'
+      default: unknown
+      validate: (v: unknown) => boolean
+    }
 
 // The catalog, indexed by key for O(1) lookup.
 export type SettingsCatalog = Record<string, SettingDef>

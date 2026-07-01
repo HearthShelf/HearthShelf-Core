@@ -86,7 +86,7 @@ export function buildAutoQueue({
       // completed: queue the remaining unfinished books in sequence.
       for (const s of series) {
         const touched = s.books.some(
-          (b) => isFinished(b.id, progressById) || isStarted(b.id, progressById)
+          (b) => isFinished(b.id, progressById) || isStarted(b.id, progressById),
         )
         const complete = s.books.every((b) => isFinished(b.id, progressById))
         if (!touched || complete) continue

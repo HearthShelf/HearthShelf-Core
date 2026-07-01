@@ -10,5 +10,12 @@
     "./lib/*": "./src/lib/*.ts"
   },
   "sideEffects": false,
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
 }

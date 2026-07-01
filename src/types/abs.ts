@@ -256,8 +256,10 @@ export interface ABSBookMetadataDetail extends ABSBookMetadata {
   rating?: number | null
 }
 
-export interface ABSBookMediaDetail
-  extends Omit<ABSBookMedia, 'metadata' | 'duration' | 'numChapters'> {
+export interface ABSBookMediaDetail extends Omit<
+  ABSBookMedia,
+  'metadata' | 'duration' | 'numChapters'
+> {
   metadata: ABSBookMetadataDetail
   audioFiles: ABSAudioFile[]
   chapters: ABSChapter[]

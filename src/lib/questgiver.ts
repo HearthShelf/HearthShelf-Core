@@ -95,14 +95,7 @@ export interface QgRenderedPick {
 
 // Genres surfaced as "explore" sliders when RMAB request is enabled - things the
 // listener may not own yet.
-export const QG_EXPLORE_GENRES = [
-  'LitRPG',
-  'Thriller',
-  'Mystery',
-  'Romance',
-  'Horror',
-  'History',
-]
+export const QG_EXPLORE_GENRES = ['LitRPG', 'Thriller', 'Mystery', 'Romance', 'Horror', 'History']
 
 // ABS often stores genres as comma-joined multi-genre strings
 // ("Mystery, Thriller & Suspense, Science Fiction & Fantasy"). Split into clean
@@ -129,7 +122,7 @@ function hoursOf(item: ABSLibraryItem): number {
 // Build the QgBook view of the library, merging in progress.
 export function qgBooks(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>
+  progressById: Map<string, ABSMediaProgress>,
 ): QgBook[] {
   return items.map((it) => {
     const p = progressById.get(it.id)
@@ -183,11 +176,7 @@ export function qgBuildProfile(books: QgBook[]): QgProfile {
   const maxScore = Math.max(1, ...listened.map((x) => x.score))
   listened.forEach((x) => {
     x.weight =
-      x.score > 0
-        ? Math.max(2, Math.round((x.score / maxScore) * 10))
-        : x.owned > 0
-          ? 1
-          : 0
+      x.score > 0 ? Math.max(2, Math.round((x.score / maxScore) * 10)) : x.owned > 0 ? 1 : 0
   })
   listened.sort((a, b) => b.score - a.score)
   const played = listened.filter((x) => x.score > 0)
@@ -223,7 +212,7 @@ export function qgExternalSearchTerms(
   _profile: QgProfile,
   books: QgBook[],
   weights: Record<string, number>,
-  max = 5
+  max = 5,
 ): string[] {
   const terms: string[] = []
   // Top weighted genres (explicit listener intent).
@@ -255,10 +244,7 @@ export interface QgExternalHit {
 
 // Map external catalog hits to candidates, deduped against owned title|author.
 // `source: 'request'` distinguishes them from owned library candidates.
-export function qgExternalCandidates(
-  hits: QgExternalHit[],
-  books: QgBook[]
-): QgCandidate[] {
+export function qgExternalCandidates(hits: QgExternalHit[], books: QgBook[]): QgCandidate[] {
   const owned = new Set(books.map((b) => (b.title + '|' + b.author).toLowerCase()))
   const seen = new Set<string>()
   const out: QgCandidate[] = []
@@ -285,12 +271,11 @@ export function qgHeuristic(
   profile: QgProfile,
   answers: QgAnswers,
   candidates: QgCandidate[],
-  rand: () => number = Math.random
+  rand: () => number = Math.random,
 ): Omit<QgResult, 'engine'> {
   const w = answers.weights || {}
   // A candidate's weight is the best weight across all its genre tokens.
-  const weightOf = (c: QgCandidate): number =>
-    Math.max(0, ...c.genres.map((g) => w[g] || 0))
+  const weightOf = (c: QgCandidate): number => Math.max(0, ...c.genres.map((g) => w[g] || 0))
   const dirBoost = (c: QgCandidate): number => {
     if (answers.direction === 'more' && profile.dominant && c.genres.includes(profile.dominant))
       return 4
@@ -316,10 +301,8 @@ export function qgHeuristic(
   const reasons = {
     more: (g: string) =>
       `Right in your ${g} wheelhouse - exactly the lane you've been listening in.`,
-    switch: (g: string) =>
-      `A strong ${g} pick to pull you back into a genre you've let go cold.`,
-    new: (g: string) =>
-      `A well-reviewed ${g} listen to stretch your shelf in a new direction.`,
+    switch: (g: string) => `A strong ${g} pick to pull you back into a genre you've let go cold.`,
+    new: (g: string) => `A well-reviewed ${g} listen to stretch your shelf in a new direction.`,
   }
   const count = answers.count ?? (answers.includeRequest ? 5 : 4)
   const picks: QgPick[] = scored.slice(0, count).map((x) => ({
@@ -338,7 +321,7 @@ export function qgHeuristic(
 export function qgCraftPrompt(
   profile: QgProfile,
   answers: QgAnswers,
-  candidates: QgCandidate[]
+  candidates: QgCandidate[],
 ): string {
   const w = answers.weights || {}
   const weightLines = Object.entries(w)
@@ -350,7 +333,7 @@ export function qgCraftPrompt(
     .map((c) => `${c.id} | ${c.title} — ${c.author} | ${c.genre} | ${c.hours}h`)
     .join('\n')
   return [
-    'You are QuestGiver, an audiobook matchmaker inside HearthShelf. Recommend the listener\'s next books.',
+    "You are QuestGiver, an audiobook matchmaker inside HearthShelf. Recommend the listener's next books.",
     '',
     'LISTENER PROFILE:',
     `- Finished ${profile.totalFin} books; dominant genre lately: ${profile.dominant || 'varied'}.`,
@@ -359,9 +342,7 @@ export function qgCraftPrompt(
       : '',
     `- Direction they chose: ${answers.direction} (more=stay in lane, switch=revive a cold genre, new=explore).`,
     answers.mood ? `- In the mood for: ${answers.mood}` : '',
-    answers.length && answers.length !== 'any'
-      ? `- Length preference: ${answers.length}`
-      : '',
+    answers.length && answers.length !== 'any' ? `- Length preference: ${answers.length}` : '',
     answers.familiarity != null
       ? `- New-voice appetite (0 known authors .. 10 all new): ${answers.familiarity}/10`
       : '',
