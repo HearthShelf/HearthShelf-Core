@@ -101,6 +101,16 @@ const DEFS: SettingDef[] = [
   { key: 'colorEverywhere', scope: 'account', type: 'boolean', default: true },
   { key: 'hearthBgPlayer', scope: 'account', type: 'boolean', default: true },
   { key: 'cardBg', scope: 'account', type: 'boolean', default: true },
+  // Mobile full-player background: blurred cover art, a breathing hue gradient,
+  // or the hearth artwork. Web still keys its player background off the boolean
+  // hearthBgPlayer above; the two converge when web adopts this enum.
+  {
+    key: 'playerBg',
+    scope: 'account',
+    type: 'enum',
+    values: ['blurred', 'gradient', 'hearth'],
+    default: 'blurred',
+  },
 
   // --- Playback (account) ---
   {
@@ -125,8 +135,20 @@ const DEFS: SettingDef[] = [
   { key: 'defaultSpeed', scope: 'account', type: 'number', min: 0.5, max: 3.5, default: 1 },
 
   // --- Cover display (account) - mobile ---
-  { key: 'coverAspect', scope: 'account', type: 'enum', values: ['square', 'portrait'], default: 'square' },
-  { key: 'glowMode', scope: 'account', type: 'enum', values: ['gradient', 'image'], default: 'gradient' },
+  {
+    key: 'coverAspect',
+    scope: 'account',
+    type: 'enum',
+    values: ['square', 'portrait'],
+    default: 'square',
+  },
+  {
+    key: 'glowMode',
+    scope: 'account',
+    type: 'enum',
+    values: ['gradient', 'image'],
+    default: 'gradient',
+  },
 
   // --- Queue (account) ---
   {
@@ -248,10 +270,28 @@ const DEFS: SettingDef[] = [
   // --- Haptics + player-button layout (device) - mobile ---
   // Haptics are device hardware, and the player-button arrangement is a
   // per-device UI layout, so both are device-scoped (backed up per install).
-  { key: 'haptics', scope: 'device', type: 'enum', values: ['off', 'minimal', 'all'], default: 'minimal' },
-  { key: 'hapticIntensity', scope: 'device', type: 'enum', values: ['light', 'medium'], default: 'light' },
+  {
+    key: 'haptics',
+    scope: 'device',
+    type: 'enum',
+    values: ['off', 'minimal', 'all'],
+    default: 'minimal',
+  },
+  {
+    key: 'hapticIntensity',
+    scope: 'device',
+    type: 'enum',
+    values: ['light', 'medium'],
+    default: 'light',
+  },
   { key: 'playerActionsIconOnly', scope: 'device', type: 'boolean', default: false },
-  { key: 'playerActions', scope: 'device', type: 'json', validate: isPlayerActions, default: DEFAULT_PLAYER_ACTIONS },
+  {
+    key: 'playerActions',
+    scope: 'device',
+    type: 'json',
+    validate: isPlayerActions,
+    default: DEFAULT_PLAYER_ACTIONS,
+  },
 ]
 
 // The catalog, indexed by key.
