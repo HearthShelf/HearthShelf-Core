@@ -43,3 +43,148 @@ export interface HSFinishedByResponse {
   available: boolean
   users: HSFinishedByUser[]
 }
+
+// --- Listening now (Phase 3) ---
+// Who is actively (recently) listening to a book. New privacy surface, default
+// OFF; the server filters by the shareCurrentlyListening resolution. UI copy
+// says "listening recently", not "online". See docs/social.md.
+
+/** One user actively listening to a book right now-ish. */
+export interface HSListeningNowUser {
+  userId: string
+  username: string
+}
+
+/** Listening-now for a single item (GET ?libraryItemId=). */
+export interface HSListeningNowResponse {
+  available: boolean
+  users: HSListeningNowUser[]
+}
+
+/** Listening-now for many items at once (POST {libraryItemIds}, capped 100). */
+export interface HSListeningNowBulkResponse {
+  available: boolean
+  byItem: Record<string, HSListeningNowUser[]>
+}
+
+// --- Public notes (Phase 4) ---
+// Per-book notes with server-side spoiler gating by playback position. The
+// server returns full notes only where allowed and anonymous locked stubs for
+// ahead-notes (timeline ticks + club pops). See docs/social.md.
+
+/** A public or club note. clubId '' = public; parentId '' = top-level (a reply
+ * gates at its PARENT's timeSec); timeSec null = general (ungated) note. */
+export interface HSNote {
+  id: string
+  userId: string
+  username: string
+  libraryItemId: string
+  clubId: string
+  parentId: string
+  timeSec: number | null
+  body: string
+  createdAt: number
+}
+
+/** Anonymous stub for a locked ahead-note: id + timestamp only, no body/author/
+ * date. Powers timeline ticks and club pops without leaking spoilers. */
+export interface HSNoteStub {
+  id: string
+  timeSec: number
+}
+
+/** GET /hs/notes response: unlocked notes, locked stubs (club scope only),
+ * hiddenAhead count, and the server clock for pop timing. */
+export interface HSNotesResponse {
+  enabled: boolean
+  notes: HSNote[]
+  locked: HSNoteStub[]
+  hiddenAhead: number
+  now: number
+}
+
+// --- Book Club (Phase 5) ---
+// Persistent multi-book reading groups. A club has a book history (past books +
+// one current book), per-book chat, member progress race, and unread cursors.
+// See docs/social.md.
+
+/** One book in a club's reading history. finishedAt null = the club's current
+ * book (exactly one per club). title/author are snapshots so history renders
+ * even if the item later leaves ABS. */
+export interface HSClubBook {
+  libraryItemId: string
+  title: string
+  author: string
+  addedBy: string
+  startedAt: number
+  finishedAt: number | null
+}
+
+/** A club summary. currentBook is the one book with finishedAt null, or null if
+ * the club has no current book. */
+export interface HSClub {
+  id: string
+  name: string
+  createdBy: string
+  isOpen: boolean
+  archived: boolean
+  createdAt: number
+  memberCount: number
+  currentBook: HSClubBook | null
+}
+
+/** A club member with their progress in the book being viewed. Progress fields
+ * (currentTime, duration, isFinished) are null when the server has no ABS db
+ * mounted. */
+export interface HSClubMember {
+  userId: string
+  username: string
+  role: 'owner' | 'member'
+  joinedAt: number
+  currentTime: number | null
+  duration: number | null
+  isFinished: boolean | null
+  listeningNow: boolean
+}
+
+/** GET /hs/clubs response: the caller's clubs and open clubs joinable for an
+ * item (joinable = open clubs whose current book is that item). */
+export interface HSClubsResponse {
+  enabled: boolean
+  mine: HSClub[]
+  joinable: HSClub[]
+}
+
+/** GET /hs/clubs/:id response: the club, its full book history, members with
+ * progress in the viewed book, that book's notes (gated), and the unread count.
+ * locked stubs are only present for the current book. */
+export interface HSClubDetail {
+  enabled: boolean
+  club: HSClub
+  books: HSClubBook[]
+  members: HSClubMember[]
+  notes: {
+    notes: HSNote[]
+    locked: HSNoteStub[]
+    hiddenAhead: number
+  }
+  unreadCount: number
+}
+
+// --- Timeline markers (shared player scrubber) ---
+
+/** A clustered scrubber marker built by clusterTimelineMarkers. fraction is the
+ * cluster's mean position (0..1 clamped); kind is 'mixed' when a cluster holds
+ * both unlocked notes and locked stubs; items carries the clustered inputs. */
+export interface TimelineMarker {
+  fraction: number
+  kind: 'note' | 'stub' | 'mixed'
+  count: number
+  items: Array<{
+    id: string
+    timeSec: number
+    kind: 'note' | 'stub'
+    userId?: string
+    username?: string
+  }>
+}
