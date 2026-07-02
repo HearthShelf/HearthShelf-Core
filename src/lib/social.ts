@@ -39,12 +39,18 @@ export function gateNotes(
     if (cached !== undefined) return cached
     let result: boolean
     if (n.parentId !== '') {
-      // Reply: gates at its parent. Author/finished still bypass.
+      // Reply: gates at its parent's TIME gate (not the parent's full
+      // visibility - the parent-author bypass must not unlock someone else's
+      // reply). Author/finished still bypass. A missing parent is treated as
+      // locked (conservative: partial lists must never over-reveal), matching
+      // the server's authoritative rule.
       if (n.userId === meId || isFinished) {
         result = true
       } else {
         const parent = byId.get(n.parentId)
-        result = parent ? isVisible(parent) : passesOwn(n)
+        result = parent
+          ? parent.timeSec == null || (positionSec != null && parent.timeSec <= positionSec)
+          : false
       }
     } else {
       result = passesOwn(n)
@@ -65,9 +71,11 @@ export function gateNotes(
 /**
  * Detect note stubs crossed as playback moves from prevPos to newPos. A pop
  * fires for each stub with prevPos < timeSec <= newPos whose id is not already
- * in seenIds, sorted by timeSec ascending. seeked is true when the move looks
- * like a scrub (backward, or a forward jump over 30s) so the UI can condense
- * the crossed pops into one summary instead of a toast flood.
+ * in seenIds, sorted by timeSec ascending. A stub at exactly 0:00 pops on the
+ * first forward tick from 0 (a strict lower bound would orphan it forever,
+ * since prevPos starts at 0). seeked is true when the move looks like a scrub
+ * (backward, or a forward jump over 30s) so the UI can condense the crossed
+ * pops into one summary instead of a toast flood.
  */
 export function detectNotePops(
   prevPos: number,
@@ -76,8 +84,10 @@ export function detectNotePops(
   seenIds: ReadonlySet<string>,
 ): { pops: HSNoteStub[]; seeked: boolean } {
   const seeked = newPos < prevPos || newPos - prevPos > 30
+  const crossed = (t: number): boolean =>
+    (t > prevPos && t <= newPos) || (t === 0 && prevPos === 0 && newPos > 0)
   const pops = stubs
-    .filter((s) => s.timeSec > prevPos && s.timeSec <= newPos && !seenIds.has(s.id))
+    .filter((s) => crossed(s.timeSec) && !seenIds.has(s.id))
     .sort((a, b) => a.timeSec - b.timeSec)
   return { pops, seeked }
 }
@@ -129,7 +139,9 @@ export function sortMembersByProgress(members: HSClubMember[]): HSClubMember[] {
     .map((x) => x.m)
 }
 
-interface MarkerItem {
+/** Input item for clusterTimelineMarkers: an unlocked note (kind 'note', with
+ * author info for the avatar dot) or a locked stub (kind 'stub', anonymous). */
+export interface MarkerItem {
   id: string
   timeSec: number
   kind: 'note' | 'stub'
@@ -144,14 +156,14 @@ interface MarkerItem {
  * over duration (0..1 clamped). If clusters exceed maxMarkers (default 40),
  * nearest-neighbor pairs merge until under the cap. A cluster's kind is 'mixed'
  * when it holds both notes and stubs. Deterministic; returns [] for
- * durationSec <= 0.
+ * durationSec <= 0 or maxMarkers < 1 (a 0 cap means "no markers", e.g. car mode).
  */
 export function clusterTimelineMarkers(
   items: MarkerItem[],
   durationSec: number,
   maxMarkers = 40,
 ): TimelineMarker[] {
-  if (durationSec <= 0) return []
+  if (durationSec <= 0 || maxMarkers < 1) return []
 
   const sorted = [...items].sort((a, b) => a.timeSec - b.timeSec)
   if (sorted.length === 0) return []
