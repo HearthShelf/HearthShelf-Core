@@ -72,16 +72,27 @@ export interface HSListeningNowBulkResponse {
 // server returns full notes only where allowed and anonymous locked stubs for
 // ahead-notes (timeline ticks + club pops). See docs/social.md.
 
-/** A public or club note. clubId '' = public; parentId '' = top-level (a reply
- * gates at its PARENT's timeSec); timeSec null = general (ungated) note. */
+/** Who can read a note. 'club' = members of clubId; 'public' = everyone on the
+ * server; 'personal' = only the author (the server filters these to the author,
+ * so other callers never receive them). See docs/social.md. */
+export type NoteVisibility = 'club' | 'public' | 'personal'
+
+/** A club, public, or personal note. clubId '' for public/personal; parentId ''
+ * = top-level (a reply gates at its PARENT's timeSec); timeSec null = general
+ * (ungated) note. `safe` = author-declared spoiler-free, so it bypasses the
+ * position gate and shows to everyone regardless of playback position (still
+ * carries timeSec for the scrubber marker). `safe` applies only to top-level
+ * notes; replies never inherit it. */
 export interface HSNote {
   id: string
   userId: string
   username: string
   libraryItemId: string
   clubId: string
+  visibility: NoteVisibility
   parentId: string
   timeSec: number | null
+  safe: boolean
   body: string
   createdAt: number
 }

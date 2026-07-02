@@ -280,6 +280,8 @@ const DEFS: SettingDef[] = [
   // Show a toast when playback crosses a club note. Device-scoped so you can
   // silence pops on one device without leaving the club.
   { key: 'notePops', scope: 'device', type: 'boolean', default: true },
+  // Remembers the note composer's last Public/Personal choice, per device.
+  { key: 'noteDefaultVisibility', scope: 'device', type: 'enum', values: ['public', 'personal'], default: 'public' },
   { key: 'carMode', scope: 'device', type: 'enum', values: ['auto', 'on', 'off'], default: 'auto' },
   { key: 'carFadeEnabled', scope: 'device', type: 'boolean', default: true },
   { key: 'carFadeSec', scope: 'device', type: 'number', min: 0, max: 120, int: true, default: 30 },

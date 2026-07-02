@@ -9,12 +9,13 @@ import type { HSNote, HSNoteStub, HSClubMember, TimelineMarker } from '../types/
  * advances between polls. NOT the authoritative spoiler gate - the server route
  * filter is; this only unlocks already-fetched notes locally.
  *
- * A note is visible iff its timeSec is null (general), timeSec <= position, its
- * author is the caller, or the book is finished. A reply (parentId != '') gates
- * at its PARENT's timeSec, found within the same list; a reply whose parent is
- * not visible is not visible. positionSec null means "no position known" (only
- * ungated / own / finished notes show). Returns the visible notes plus the
- * count of notes hidden ahead.
+ * A note is visible iff it is safe (author-declared spoiler-free), its timeSec
+ * is null (general), timeSec <= position, its author is the caller, or the book
+ * is finished. A reply (parentId != '') gates at its PARENT's timeSec, found
+ * within the same list; a reply whose parent is not visible is not visible
+ * (replies never inherit the parent's `safe` flag - only the parent's time
+ * gate). positionSec null means "no position known" (only safe / ungated / own
+ * / finished notes show). Returns the visible notes plus the count hidden ahead.
  */
 export function gateNotes(
   notes: HSNote[],
@@ -26,6 +27,7 @@ export function gateNotes(
 
   // A note's own gate (ignoring parent chains): the point at which it unlocks.
   const passesOwn = (n: HSNote): boolean => {
+    if (n.safe) return true
     if (n.userId === meId) return true
     if (isFinished) return true
     if (n.timeSec == null) return true
@@ -39,17 +41,20 @@ export function gateNotes(
     if (cached !== undefined) return cached
     let result: boolean
     if (n.parentId !== '') {
-      // Reply: gates at its parent's TIME gate (not the parent's full
-      // visibility - the parent-author bypass must not unlock someone else's
-      // reply). Author/finished still bypass. A missing parent is treated as
-      // locked (conservative: partial lists must never over-reveal), matching
-      // the server's authoritative rule.
+      // Reply: gates at its parent's TIME gate, plus the parent's `safe` flag (a
+      // safe parent is shown to everyone, so its thread is too). NOT the parent's
+      // author bypass - that must not unlock a stranger's reply. The reply's own
+      // author/finished still bypass. A missing parent is treated as locked
+      // (conservative: partial lists must never over-reveal), matching the
+      // server's authoritative rule.
       if (n.userId === meId || isFinished) {
         result = true
       } else {
         const parent = byId.get(n.parentId)
         result = parent
-          ? parent.timeSec == null || (positionSec != null && parent.timeSec <= positionSec)
+          ? parent.safe ||
+            parent.timeSec == null ||
+            (positionSec != null && parent.timeSec <= positionSec)
           : false
       }
     } else {
