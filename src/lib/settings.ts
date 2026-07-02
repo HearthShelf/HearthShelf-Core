@@ -192,6 +192,18 @@ const DEFS: SettingDef[] = [
     default: 20,
   },
   { key: 'sleepChime', scope: 'account', type: 'boolean', default: false },
+  // Shake the phone to add time to a running sleep timer (mobile renders these;
+  // account-scoped so the preference survives reinstalls).
+  { key: 'sleepShakeExtend', scope: 'account', type: 'boolean', default: false },
+  {
+    key: 'sleepShakeMinutes',
+    scope: 'account',
+    type: 'number',
+    min: 1,
+    max: 30,
+    int: true,
+    default: 5,
+  },
   { key: 'autoSleep', scope: 'account', type: 'boolean', default: false },
   {
     key: 'autoSleepStart',
