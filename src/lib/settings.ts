@@ -233,6 +233,9 @@ const DEFS: SettingDef[] = [
   { key: 'useGravatar', scope: 'account', type: 'boolean', default: false },
   // Tri-state: null = never chose (follow the server's community default).
   { key: 'shareReadBooks', scope: 'account', type: 'triBool', default: null },
+  // Tri-state: null = never chose (follow the server's community default, which
+  // ships OFF for presence - more sensitive than a historical reading list).
+  { key: 'shareCurrentlyListening', scope: 'account', type: 'triBool', default: null },
 
   // --- Device-scoped (per install, not shared across devices) ---
   // Whether this device applies account-scoped server settings at all. Off =
@@ -274,6 +277,9 @@ const DEFS: SettingDef[] = [
     int: true,
     default: 20,
   },
+  // Show a toast when playback crosses a club note. Device-scoped so you can
+  // silence pops on one device without leaving the club.
+  { key: 'notePops', scope: 'device', type: 'boolean', default: true },
   { key: 'carMode', scope: 'device', type: 'enum', values: ['auto', 'on', 'off'], default: 'auto' },
   { key: 'carFadeEnabled', scope: 'device', type: 'boolean', default: true },
   { key: 'carFadeSec', scope: 'device', type: 'number', min: 0, max: 120, int: true, default: 30 },
