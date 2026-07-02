@@ -28,6 +28,40 @@ function isAutoRules(v: unknown): boolean {
   )
 }
 
+// Where a customizable player-action button can sit. The action-KEY whitelist
+// stays platform-side (mobile's normalizePlayerActions reconciles unknown keys);
+// the catalog validates only the arrangement's shape.
+const ACTION_PLACEMENTS = ['onscreen', 'tray', 'hidden']
+
+// True if v is a valid playerActions arrangement: entries of { key, placement }.
+function isPlayerActions(v: unknown): boolean {
+  if (!Array.isArray(v)) return false
+  return v.every(
+    (a) =>
+      !!a &&
+      typeof a === 'object' &&
+      typeof (a as { key: unknown }).key === 'string' &&
+      ACTION_PLACEMENTS.includes((a as { placement: unknown }).placement as string),
+  )
+}
+
+// Default player-action arrangement. Duplicated from mobile's DEFAULT_PLAYER_ACTIONS
+// as a plain literal so core stays platform-agnostic (no mobile -> core dependency).
+// Keep in step with src/store/settings.ts in HearthShelf-Mobile.
+const DEFAULT_PLAYER_ACTIONS: Array<{ key: string; placement: string }> = [
+  { key: 'chapters', placement: 'onscreen' },
+  { key: 'speed', placement: 'onscreen' },
+  { key: 'sleep', placement: 'onscreen' },
+  { key: 'recent', placement: 'onscreen' },
+  { key: 'bookmarks', placement: 'tray' },
+  { key: 'details', placement: 'tray' },
+  { key: 'notes', placement: 'tray' },
+  { key: 'addList', placement: 'tray' },
+  { key: 'download', placement: 'tray' },
+  { key: 'cast', placement: 'tray' },
+  { key: 'carMode', placement: 'tray' },
+]
+
 // Every HearthShelf setting, unified across web + hosted. Absence of a stored
 // row means "use the default here" (sparse storage - the DB holds only what the
 // user changed). Where the two clients disagreed on a default, the value below
@@ -87,6 +121,12 @@ const DEFS: SettingDef[] = [
   },
   { key: 'skipBack', scope: 'account', type: 'number', min: 5, max: 300, int: true, default: 15 },
   { key: 'chapterBarrier', scope: 'account', type: 'boolean', default: true },
+  // Default playback rate a fresh book starts at. Fractional, so not int.
+  { key: 'defaultSpeed', scope: 'account', type: 'number', min: 0.5, max: 3.5, default: 1 },
+
+  // --- Cover display (account) - mobile ---
+  { key: 'coverAspect', scope: 'account', type: 'enum', values: ['square', 'portrait'], default: 'square' },
+  { key: 'glowMode', scope: 'account', type: 'enum', values: ['gradient', 'image'], default: 'gradient' },
 
   // --- Queue (account) ---
   {
@@ -204,6 +244,14 @@ const DEFS: SettingDef[] = [
   { key: 'carFadeEnabled', scope: 'device', type: 'boolean', default: true },
   { key: 'carFadeSec', scope: 'device', type: 'number', min: 0, max: 120, int: true, default: 30 },
   { key: 'showAdvanced', scope: 'device', type: 'boolean', default: false },
+
+  // --- Haptics + player-button layout (device) - mobile ---
+  // Haptics are device hardware, and the player-button arrangement is a
+  // per-device UI layout, so both are device-scoped (backed up per install).
+  { key: 'haptics', scope: 'device', type: 'enum', values: ['off', 'minimal', 'all'], default: 'minimal' },
+  { key: 'hapticIntensity', scope: 'device', type: 'enum', values: ['light', 'medium'], default: 'light' },
+  { key: 'playerActionsIconOnly', scope: 'device', type: 'boolean', default: false },
+  { key: 'playerActions', scope: 'device', type: 'json', validate: isPlayerActions, default: DEFAULT_PLAYER_ACTIONS },
 ]
 
 // The catalog, indexed by key.
