@@ -3,3 +3,4 @@
 export * from './abs'
 export * from './queue'
 export * from './settings'
+export * from './social'
