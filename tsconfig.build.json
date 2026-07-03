@@ -1,0 +1,22 @@
+{
+  // Emit config for the Node/compiled consumers (the self-hosted server imports
+  // dist/*.js - it has no bundler to read .ts). Bundler consumers (mobile Metro,
+  // web Vite) still read src/*.ts directly via their path alias; they never touch
+  // dist. rewriteRelativeImportExtensions turns the source's explicit .ts import
+  // specifiers into .js in the output so Node ESM can resolve them.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src/**/*.ts"]
+}

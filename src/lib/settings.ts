@@ -3,7 +3,7 @@
 // definition of every setting; validateSetting/mergeSettings run identically on
 // client and server. See docs/settings-sync.md in HearthShelf.
 
-import { resolveQueueConflict } from './queue'
+import { resolveQueueConflict } from './queue.ts'
 import type { AutoRuleId, AutoRulePref } from '../types/queue'
 import type {
   SettingChange,

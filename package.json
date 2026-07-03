@@ -1,21 +1,32 @@
 {
   "name": "@hearthshelf/core",
   "version": "0.1.0",
-  "description": "Shared types and pure logic for HearthShelf (web, hosted, mobile). No React, no DOM, no build step - consumed directly as TypeScript source via a path alias.",
+  "description": "Shared types and pure logic for HearthShelf (web, hosted, mobile). Dual-consumed: bundlers read the TypeScript source via a path alias; the no-bundler server imports the compiled dist (npm run build).",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types/index.ts",
-    "./lib/*": "./src/lib/*.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./src/types/index.ts",
+      "default": "./dist/types/index.js"
+    },
+    "./lib/*": {
+      "types": "./src/lib/*.ts",
+      "default": "./dist/lib/*.js"
+    }
   },
   "sideEffects": false,
   "license": "MIT",
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "prettier": "^3.4.2"
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.0"
   }
 }

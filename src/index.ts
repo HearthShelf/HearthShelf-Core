@@ -1,18 +1,20 @@
 // @hearthshelf/core - shared types + pure logic for all HearthShelf surfaces.
 //
-// Ships TypeScript source (no build step); each consumer's bundler (Vite / Metro)
-// compiles it via a `@hearthshelf/core` path alias. No React, no DOM, no Node
-// APIs - so it works identically in web and React Native.
+// Dual-consumed: bundler clients (Vite / Metro) compile the TypeScript source
+// directly via a `@hearthshelf/core` path alias, while the no-bundler self-hosted
+// server imports the compiled dist/*.js (see package.json exports + tsconfig.build
+// .json). Relative specifiers carry .ts so the build can rewrite them to .js for
+// Node ESM; bundlers accept .ts too. No React, no DOM - identical on web and RN.
 
-export * from './types'
-export * from './lib/absEndpoints'
-export * from './lib/format'
-export * from './lib/letterBucket'
-export * from './lib/libraryFilters'
-export * from './lib/stats'
-export * from './lib/questgiver'
-export * from './lib/discover'
-export * from './lib/discoverRank'
-export * from './lib/queue'
-export * from './lib/settings'
-export * from './lib/social'
+export * from './types/index.ts'
+export * from './lib/absEndpoints.ts'
+export * from './lib/format.ts'
+export * from './lib/letterBucket.ts'
+export * from './lib/libraryFilters.ts'
+export * from './lib/stats.ts'
+export * from './lib/questgiver.ts'
+export * from './lib/discover.ts'
+export * from './lib/discoverRank.ts'
+export * from './lib/queue.ts'
+export * from './lib/settings.ts'
+export * from './lib/social.ts'

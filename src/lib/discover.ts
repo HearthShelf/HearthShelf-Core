@@ -4,7 +4,7 @@
 // what the listener actually likes.
 
 import type { ABSLibraryItem, ABSMediaProgress } from '../types/abs'
-import { qgBooks, qgBuildProfile, type QgProfile } from './questgiver'
+import { qgBooks, qgBuildProfile, type QgProfile } from './questgiver.ts'
 
 export interface DiscoverShelf {
   id: string
