@@ -17,7 +17,7 @@ export interface QueueEntry {
 export type QueueMode = 'off' | 'manual' | 'auto' | 'playlist'
 
 // Ordered, toggleable rules that drive Auto mode. Order = priority.
-export type AutoRuleId = 'finish-series' | 'in-progress' | 'new-in-series'
+export type AutoRuleId = 'finish-series' | 'in-progress' | 'new-in-series' | 'book-club'
 
 export interface AutoRulePref {
   id: AutoRuleId

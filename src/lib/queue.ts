@@ -8,6 +8,7 @@ export const DEFAULT_AUTO_RULES: AutoRulePref[] = [
   { id: 'finish-series', on: true },
   { id: 'in-progress', on: true },
   { id: 'new-in-series', on: true },
+  { id: 'book-club', on: true },
 ]
 
 interface BuildAutoQueueArgs {
@@ -21,6 +22,12 @@ interface BuildAutoQueueArgs {
   currentItemId: string | null
   // Ordered, enabled rules (array order = priority).
   rules: AutoRulePref[]
+  // Books the user's clubs are reading, in the order they should queue (each
+  // club's current book, then its up-next queue). Drives the 'book-club' rule.
+  // Carries its own title/author so a club book that isn't in the local library
+  // list still produces a usable entry. Optional so existing callers are
+  // unaffected; the rule no-ops when omitted.
+  clubBooks?: QueueEntry[]
 }
 
 function entryOf(item: ABSLibraryItem): QueueEntry {
@@ -50,17 +57,24 @@ export function buildAutoQueue({
   progressById,
   currentItemId,
   rules,
+  clubBooks = [],
 }: BuildAutoQueueArgs): QueueEntry[] {
   const itemById = new Map(items.map((i) => [i.id, i]))
   // Series that contain the current book (for "finish current series").
   const seriesOf = (id: string) => series.filter((s) => s.books.some((b) => b.id === id))
 
-  const collected: string[] = []
-  const push = (id: string) => {
+  const collected: QueueEntry[] = []
+  const seen = new Set<string>()
+  // Push a library-item id. `fallback` supplies title/author for ids not in the
+  // library list (club books), so they still produce a usable entry.
+  const push = (id: string, fallback?: QueueEntry) => {
     if (id === currentItemId) return
-    if (!itemById.has(id)) return
     if (isFinished(id, progressById)) return
-    if (!collected.includes(id)) collected.push(id)
+    const item = itemById.get(id)
+    if (!item && !fallback) return
+    if (seen.has(id)) return
+    seen.add(id)
+    collected.push(item ? entryOf(item) : (fallback as QueueEntry))
   }
 
   for (const rule of rules) {
@@ -94,10 +108,15 @@ export function buildAutoQueue({
           if (!isFinished(b.id, progressById)) push(b.id)
         }
       }
+    } else if (id === 'book-club') {
+      // What the user's clubs are reading (current book, then up-next), in the
+      // order the caller supplied. Club books carry their own title/author, so
+      // they queue even if they aren't in this library's item list.
+      for (const b of clubBooks) push(b.libraryItemId, b)
     }
   }
 
-  return collected.map((id) => entryOf(itemById.get(id) as ABSLibraryItem))
+  return collected
 }
 
 /** Last-writer-wins merge for the two queue states a client might be holding
