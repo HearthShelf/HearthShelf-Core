@@ -354,9 +354,9 @@ export interface HSIntegrationsConfig {
 /** PUT /hs/integrations/config body (partial patch; env-pinned fields ignored).
  *  Secret fields: '' ignored (keeps stored), null clears, string sets. */
 export interface HSIntegrationsPatch {
-  rmabUrl?: string
+  rmabUrl?: string | null // null or '' clears the stored URL
   rmabLoginToken?: string | null
-  audplexusUrl?: string
+  audplexusUrl?: string | null // null or '' clears the stored URL
   audplexusKey?: string | null
   audibleRegion?: HSAudibleRegion
 }
@@ -563,9 +563,21 @@ export type HSHostedPairStatusResult = Record<string, unknown>
 export type HSHostedInviteResult = Record<string, unknown>
 
 // --- Community config (/hs/social/community-config) -----------------------
-// Lives with the social feature; the instance-wide default leaderboard sharing.
+// Instance-wide community settings + feature kill-switches. `canEdit` reflects
+// whether the caller (admin) may PUT changes.
 
 export interface HSCommunityConfig {
-  defaultShare: boolean
-  canEdit: boolean
+  defaultShare: boolean // reading-list leaderboard default (opt-out, on)
+  defaultShareListening: boolean // listening-now presence default (off)
+  notesEnabled: boolean // public-notes kill-switch (on)
+  clubsEnabled: boolean // book-club kill-switch (on)
+  canEdit: boolean // caller is admin (may PUT)
+}
+
+/** PUT /hs/social/community-config body (partial patch; admin-only). */
+export interface HSCommunityConfigPatch {
+  defaultShare?: boolean
+  defaultShareListening?: boolean
+  notesEnabled?: boolean
+  clubsEnabled?: boolean
 }

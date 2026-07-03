@@ -11,6 +11,9 @@ ABS change or a small refactor is a one-file edit, not a three-repo hunt.
 
 - `src/types/abs.ts` - the canonical AudiobookShelf response shapes (the single
   source of truth; each app previously kept its own drifting copy/subset).
+- `src/types/hs.ts` - the canonical **HearthShelf-native** `/hs/*` request/response
+  shapes (QuestGiver, Discover, finished-books, integrations, Audible, RMAB,
+  runtime, telemetry, hosted setup, ...). Same rule: no consumer hand-rolls these.
 - `docs/architecture.md` - **read this first.** How the repos fit together and
   who talks to whom: every client has one connection (to a HearthShelf host),
   which multiplexes ABS (`/abs-api/*`) and HearthShelf-native (`/hs/*`) surfaces.
