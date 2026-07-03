@@ -11,6 +11,13 @@ ABS change or a small refactor is a one-file edit, not a three-repo hunt.
 
 - `src/types/abs.ts` - the canonical AudiobookShelf response shapes (the single
   source of truth; each app previously kept its own drifting copy/subset).
+- `src/lib/absEndpoints.ts` - machine-readable ABS endpoint paths
+  (`ABS_ENDPOINTS`), socket event names, and the offline-sync rule flags
+  (`ABS_OFFLINE_SYNC_RULES`). Import these instead of hardcoding paths.
+- `docs/abs-api-reference.md` - the **full ABS API map**: every route with its
+  params, response shape, auth gate, emitted socket events, and the
+  offline-sync conflict rules. Cross-repo reference (visible in every consumer at
+  `packages/core/docs/`). Read it before touching progress/session code.
 - `src/lib/format.ts` - timestamp / duration / html-strip helpers.
 - `src/lib/letterBucket.ts` - A-Z bucketing for jump bars.
 - `src/lib/libraryFilters.ts` - library filter encoding/matching.

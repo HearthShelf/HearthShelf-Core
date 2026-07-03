@@ -11,8 +11,11 @@ an ABS change or a small refactor is a one-file edit, not a multi-repo hunt.
 - **Ships TypeScript source - no build, no npm publish.** Consumed as a **git
   submodule** at `packages/core` in each app, via a `@hearthshelf/core` path
   alias; each app's bundler (Vite / Metro) compiles it.
-- **Contents:** `src/types/abs.ts` (canonical ABS response shapes) +
-  `src/lib/{format,letterBucket,libraryFilters,questgiver,discover}.ts`.
+- **Contents:** `src/types/abs.ts` (canonical ABS response shapes),
+  `src/lib/absEndpoints.ts` (ABS endpoint paths + offline-sync rule flags),
+  `docs/abs-api-reference.md` (the full ABS API map - routes, auth, socket
+  events, offline-sync rules; the cross-repo reference), and
+  `src/lib/{format,letterBucket,libraryFilters,questgiver,discover,...}.ts`.
 
 ## Hard rules
 

@@ -1,0 +1,162 @@
+// Machine-readable map of the AudiobookShelf (ABS) HTTP API + the offline-sync
+// rules that govern progress reconciliation. Shared across every HearthShelf
+// surface so paths and sync semantics are defined once, not hardcoded per repo.
+//
+// The prose companion (every route's params, response shape, auth gate, and the
+// socket events it emits) is `docs/abs-api-reference.md` in this package.
+// Response shapes are typed in `src/types/abs.ts`.
+//
+// Verified against ABS 2.35.1. Pure constants + path builders - no DOM, no Node.
+
+/** ABS server version these definitions were derived from. */
+export const ABS_API_VERSION = '2.35.1'
+
+// --- Endpoint paths -------------------------------------------------------
+//
+// Static paths are string literals; parameterized paths are builder functions
+// so callers never string-concat ids by hand. Paths are relative to the ABS
+// origin (in HearthShelf they're reached through the `/abs-api/*` proxy - prefix
+// as needed at the call site).
+
+export const ABS_ENDPOINTS = {
+  // Server-level (not under /api)
+  status: '/status',
+  ping: '/ping',
+  healthcheck: '/healthcheck',
+  init: '/init',
+  login: '/login',
+  logout: '/logout',
+  authRefresh: '/auth/refresh',
+  authorize: '/api/authorize',
+
+  // Current user (self-scoped)
+  me: '/api/me',
+  meListeningSessions: '/api/me/listening-sessions',
+  meListeningStats: '/api/me/listening-stats',
+  meItemsInProgress: '/api/me/items-in-progress',
+  /** GET one media progress. */
+  meProgress: (libraryItemId: string, episodeId?: string) => (episodeId ? `/api/me/progress/${libraryItemId}/${episodeId}` : `/api/me/progress/${libraryItemId}`),
+  /** PATCH create/update progress. NO last-writer-wins guard - see ABS_OFFLINE_SYNC_RULES. */
+  meProgressUpdate: (libraryItemId: string, episodeId?: string) => (episodeId ? `/api/me/progress/${libraryItemId}/${episodeId}` : `/api/me/progress/${libraryItemId}`),
+  /** PATCH batch progress. NO guard; per-item errors silently skipped. */
+  meProgressBatchUpdate: '/api/me/progress/batch/update',
+  /** DELETE a progress record (id = MediaProgress id, not library item id). */
+  meProgressRemove: (mediaProgressId: string) => `/api/me/progress/${mediaProgressId}`,
+
+  // Playback sessions
+  /** Start a playback session for an item. */
+  itemPlay: (libraryItemId: string) => `/api/items/${libraryItemId}/play`,
+  /** Start a playback session for a podcast episode. */
+  itemPlayEpisode: (libraryItemId: string, episodeId: string) => `/api/items/${libraryItemId}/play/${episodeId}`,
+  /** Live sync of an OPEN session. Body { currentTime, timeListened (delta!), duration? }. */
+  sessionSync: (sessionId: string) => `/api/session/${sessionId}/sync`,
+  /** Close an open session (optional final sync body). */
+  sessionClose: (sessionId: string) => `/api/session/${sessionId}/close`,
+  /** GET an open (in-memory) session. */
+  sessionOpen: (sessionId: string) => `/api/session/${sessionId}`,
+  /** Sync ONE offline/local session. LWW-guarded. */
+  sessionLocal: '/api/session/local',
+  /** Batch-sync offline/local sessions. LWW-guarded, per-item results. PREFER for offline flush. */
+  sessionLocalAll: '/api/session/local-all',
+  sessions: '/api/sessions',
+  sessionsOpen: '/api/sessions/open',
+  sessionsBatchDelete: '/api/sessions/batch/delete',
+  session: (sessionId: string) => `/api/session/${sessionId}`,
+
+  // Libraries
+  libraries: '/api/libraries',
+  library: (libraryId: string) => `/api/libraries/${libraryId}`,
+  libraryItems: (libraryId: string) => `/api/libraries/${libraryId}/items`,
+  librarySearch: (libraryId: string) => `/api/libraries/${libraryId}/search`,
+  libraryPersonalized: (libraryId: string) => `/api/libraries/${libraryId}/personalized`,
+  libraryFilterData: (libraryId: string) => `/api/libraries/${libraryId}/filterdata`,
+  librarySeries: (libraryId: string) => `/api/libraries/${libraryId}/series`,
+  libraryCollections: (libraryId: string) => `/api/libraries/${libraryId}/collections`,
+  libraryPlaylists: (libraryId: string) => `/api/libraries/${libraryId}/playlists`,
+  libraryAuthors: (libraryId: string) => `/api/libraries/${libraryId}/authors`,
+
+  // Library items
+  item: (libraryItemId: string) => `/api/items/${libraryItemId}`,
+  itemCover: (libraryItemId: string) => `/api/items/${libraryItemId}/cover`,
+  itemsBatchGet: '/api/items/batch/get',
+
+  // Collections / Playlists
+  collections: '/api/collections',
+  collection: (collectionId: string) => `/api/collections/${collectionId}`,
+  playlists: '/api/playlists',
+  playlist: (playlistId: string) => `/api/playlists/${playlistId}`,
+
+  // Podcasts
+  podcastEpisode: (libraryItemId: string, episodeId: string) => `/api/podcasts/${libraryItemId}/episode/${episodeId}`,
+
+  // Authors / Series
+  author: (authorId: string) => `/api/authors/${authorId}`,
+  authorImage: (authorId: string) => `/api/authors/${authorId}/image`,
+  series: (seriesId: string) => `/api/series/${seriesId}`
+} as const
+
+// --- Socket.io event names -----------------------------------------------
+//
+// The subset a client cares about. The two that matter for progress-tracking
+// UIs are `user_item_progress_updated` and `user_session_closed`.
+
+export const ABS_SOCKET_EVENTS = {
+  auth: 'auth',
+  userItemProgressUpdated: 'user_item_progress_updated',
+  userSessionClosed: 'user_session_closed',
+  userUpdated: 'user_updated',
+  userStreamUpdate: 'user_stream_update',
+  itemUpdated: 'item_updated',
+  itemRemoved: 'item_removed',
+  libraryUpdated: 'library_updated',
+  streamReset: 'stream_reset',
+  taskStarted: 'task_started',
+  taskFinished: 'task_finished'
+} as const
+
+// --- Offline sync rules ---------------------------------------------------
+//
+// The conflict-resolution behavior that broke mobile offline sync. Encoded as
+// data so every client agrees on it. Full explanation in
+// docs/abs-api-reference.md § "Offline Sync - the rules that matter".
+
+/**
+ * Whether a progress-writing endpoint applies ABS's last-writer-wins guard.
+ *
+ * Guarded endpoints (`/api/session/local`, `/local-all`) SKIP the write when the
+ * server's stored MediaProgress.updatedAt is newer than the incoming session's
+ * `updatedAt` - so a stale offline session can't clobber newer server progress,
+ * BUT ONLY if the client set the session's `updatedAt` to when the listening
+ * actually happened. Unguarded endpoints (`/api/me/progress/*`) always apply and
+ * will overwrite newer server progress - conflict avoidance is the client's job.
+ */
+export const ABS_OFFLINE_SYNC_RULES = {
+  /** POST /api/session/local - single offline session. Server compares updatedAt. */
+  sessionLocal: { lastWriterWinsGuard: true, reportsPerItemResults: false },
+  /** POST /api/session/local-all - batch. Guarded per session; returns results[]. Preferred for flush. */
+  sessionLocalAll: { lastWriterWinsGuard: true, reportsPerItemResults: true },
+  /** PATCH /api/me/progress/:id - always applies. Use `lastUpdate` to backdate updatedAt. */
+  meProgressUpdate: { lastWriterWinsGuard: false, reportsPerItemResults: false },
+  /** PATCH /api/me/progress/batch/update - always applies; per-item errors silently dropped. */
+  meProgressBatchUpdate: { lastWriterWinsGuard: false, reportsPerItemResults: false },
+  /** POST /api/session/:id/sync - open session assumed authoritative. timeListened is a DELTA. */
+  sessionSync: { lastWriterWinsGuard: false, reportsPerItemResults: false }
+} as const
+
+/**
+ * The endpoint to prefer when flushing queued offline sessions on reconnect.
+ * It applies the LWW guard AND reports per-session success/failure, which the
+ * `/api/me/progress` batch path does not.
+ */
+export const ABS_OFFLINE_FLUSH_ENDPOINT = ABS_ENDPOINTS.sessionLocalAll
+
+/**
+ * Fields a client MUST set correctly on a queued offline session for the LWW
+ * guard to reconcile it right. `updatedAt` (epoch ms) must reflect when the
+ * listening happened, not "now" at flush time - the #1 offline-sync bug.
+ */
+export const ABS_OFFLINE_SESSION_REQUIRED_FIELDS = ['id', 'libraryItemId', 'currentTime', 'timeListening', 'updatedAt'] as const
+
+export type ABSEndpoints = typeof ABS_ENDPOINTS
+export type ABSSocketEvents = typeof ABS_SOCKET_EVENTS
+export type ABSOfflineSyncRules = typeof ABS_OFFLINE_SYNC_RULES
