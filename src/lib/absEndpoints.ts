@@ -176,10 +176,18 @@ export const ABS_OFFLINE_SESSION_REQUIRED_FIELDS = ['id', 'libraryItemId', 'curr
 // passthrough - only these fixed feature routes exist.
 
 export const HS_ENDPOINTS = {
+  // Runtime (read at boot, unauthenticated)
+  runtime: '/hs/runtime',
+  runtimeOnboarded: '/hs/runtime/onboarded',
+  runtimeServerName: '/hs/runtime/server-name',
+  runtimeInitAdmin: '/hs/runtime/init-admin',
+  runtimePublicIp: '/hs/runtime/public-ip',
+
   // Discovery / AI
   questgiverConfig: '/hs/questgiver/config',
   questgiverRecommend: '/hs/questgiver/recommend',
   questgiverRuns: '/hs/questgiver/runs',
+  questgiverHealth: '/hs/questgiver/health',
   questgiverAdminConfig: '/hs/questgiver/admin/config',
   discover: '/hs/discover',
   discoverFeedback: '/hs/discover/feedback',
@@ -200,26 +208,61 @@ export const HS_ENDPOINTS = {
   clubs: '/hs/clubs',
   notes: '/hs/notes',
 
-  // Stats / narrators (HS-native; ABS has none)
+  // Stats
   stats: '/hs/stats',
-  narrators: '/hs/narrators',
-  narratorImages: '/hs/narrators/images',
+
+  // Narrator photos (HS-native; ABS has none)
+  narratorImageNames: '/hs/narrators/images',
+  /** Narrator photo by name (GET public / PUT+DELETE admin). */
+  narratorImage: (name: string) => `/hs/narrators/${encodeURIComponent(name)}/image`,
+
+  // Per-user avatars
+  /** User avatar (GET public, may 302 to Gravatar / PUT+DELETE self-or-admin). */
+  avatar: (userId: string) => `/hs/avatars/${userId}`,
 
   // Finished-books / Hardcover
   finishedBooks: '/hs/finished-books',
+  finishedBooksMatch: '/hs/finished-books/match',
+  finishedBooksImport: '/hs/finished-books/import',
+  finishedBooksSyncAbs: '/hs/finished-books/sync-abs',
   finishedBooksHardcover: '/hs/finished-books/hardcover',
+  finishedBooksHardcoverSync: '/hs/finished-books/hardcover/sync',
 
   // Integrations (admin) + external catalogs
   integrationsConfig: '/hs/integrations/config',
   audibleSearch: '/hs/audible/search',
+  audibleSeries: '/hs/audible/series',
+  rmabConfig: '/hs/rmab/config',
   rmabSearch: '/hs/rmab/search',
   rmabRequests: '/hs/rmab/requests',
+  /** One RMAB request (GET / PATCH cancel|retry). */
+  rmabRequest: (id: string) => `/hs/rmab/requests/${id}`,
+  rmabRequestEbook: (id: string) => `/hs/rmab/requests/${id}/ebook`,
+  rmabWatchedAuthors: '/hs/rmab/watched-authors',
+  rmabWatchedSeries: '/hs/rmab/watched-series',
+  rmabIgnored: '/hs/rmab/ignored',
   audplexusConfig: '/hs/audplexus/config',
+  audplexusStatus: '/hs/audplexus/status',
 
-  // Service accounts / runtime / telemetry
+  // Service accounts / telemetry (admin)
   serviceAccounts: '/hs/service-accounts',
-  runtime: '/hs/runtime',
-  telemetry: '/hs/telemetry'
+  serviceAccount: (id: string) => `/hs/service-accounts/${encodeURIComponent(id)}`,
+  telemetry: '/hs/telemetry',
+
+  // Hosted setup / pairing (host/admin-plane; `connect` is the hosted-SPA login)
+  hostedConnect: '/hs/hosted/connect',
+  hostedConfig: '/hs/hosted/config',
+  hostedPair: '/hs/hosted/pair',
+  hostedPairStatus: '/hs/hosted/pair-status',
+  hostedPortCheck: '/hs/hosted/port-check',
+  hostedHsDirect: '/hs/hosted/hsdirect',
+  hostedReachability: '/hs/hosted/reachability',
+  hostedEmailRelay: '/hs/hosted/email-relay',
+  hostedEmailRelayApply: '/hs/hosted/email-relay/apply',
+  hostedDisconnect: '/hs/hosted/disconnect',
+  hostedInvite: '/hs/hosted/invite',
+  hostedRecoverAdmins: '/hs/hosted/recover-admins',
+  hostedRecoverSecret: '/hs/hosted/recover-secret'
 } as const
 
 export type ABSEndpoints = typeof ABS_ENDPOINTS
