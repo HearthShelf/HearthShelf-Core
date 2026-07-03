@@ -120,7 +120,9 @@ When adding an endpoint or type, decide which surface owns it:
 - ABS route facts: the ABS server source at `C:\code\audiobookshelf\server`
   (routers, controllers, PlaybackSessionManager, User/MediaProgress models). See
   `docs/abs-api-reference.md` "Regenerating".
-- HS route facts: `HearthShelf/server/index.js` (the dispatcher + the route list
-  in its header comment) and `HearthShelf/server/routes/*`.
-- Multiplexing/proxy facts: `HearthShelf/nginx/default.conf` +
-  `nginx/abs_proxy.conf`.
+- HS route + proxy facts live in the **self-hosted repo** (`HearthShelf`) - it's
+  the only repo that runs the backend and nginx:
+  - HS routes: `HearthShelf/server/index.js` (the dispatcher + the route list in
+    its header comment) and `HearthShelf/server/routes/*`.
+  - Multiplexing/proxy: `HearthShelf/nginx/default.conf` +
+    `HearthShelf/nginx/abs_proxy.conf`.
