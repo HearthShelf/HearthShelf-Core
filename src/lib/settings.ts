@@ -236,6 +236,14 @@ const DEFS: SettingDef[] = [
   // Tri-state: null = never chose (follow the server's community default, which
   // ships OFF for presence - more sensitive than a historical reading list).
   { key: 'shareCurrentlyListening', scope: 'account', type: 'triBool', default: null },
+  // Book clubs opt-in. Off hides every club surface (book-detail card, home
+  // shelf, More entry, player button). Account-scoped so opting out follows the
+  // user across devices. The server also has its own admin kill-switch.
+  { key: 'clubsEnabled', scope: 'account', type: 'boolean', default: true },
+  // Show the "open club" button on the player when the current book belongs to a
+  // club. Separate from clubsEnabled so the button can be hidden while clubs
+  // stay on. Account-scoped to follow the user across devices.
+  { key: 'clubPlayerButton', scope: 'account', type: 'boolean', default: true },
 
   // --- Device-scoped (per install, not shared across devices) ---
   // Whether this device applies account-scoped server settings at all. Off =
@@ -281,7 +289,13 @@ const DEFS: SettingDef[] = [
   // silence pops on one device without leaving the club.
   { key: 'notePops', scope: 'device', type: 'boolean', default: true },
   // Remembers the note composer's last Public/Personal choice, per device.
-  { key: 'noteDefaultVisibility', scope: 'device', type: 'enum', values: ['public', 'personal'], default: 'public' },
+  {
+    key: 'noteDefaultVisibility',
+    scope: 'device',
+    type: 'enum',
+    values: ['public', 'personal'],
+    default: 'public',
+  },
   { key: 'carMode', scope: 'device', type: 'enum', values: ['auto', 'on', 'off'], default: 'auto' },
   { key: 'carFadeEnabled', scope: 'device', type: 'boolean', default: true },
   { key: 'carFadeSec', scope: 'device', type: 'number', min: 0, max: 120, int: true, default: 30 },
