@@ -73,7 +73,7 @@ const DEFS: SettingDef[] = [
     key: 'theme',
     scope: 'account',
     type: 'enum',
-    values: ['dark', 'light', 'flat', 'oled'],
+    values: ['auto', 'dark', 'light', 'flat', 'oled'],
     default: 'dark',
   },
   {
