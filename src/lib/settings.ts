@@ -4,7 +4,7 @@
 // client and server. See docs/settings-sync.md in HearthShelf.
 
 import { resolveQueueConflict } from './queue'
-import type { AutoRuleId } from '../types/queue'
+import type { AutoRuleId, AutoRulePref } from '../types/queue'
 import type {
   SettingChange,
   SettingDef,
@@ -14,7 +14,30 @@ import type {
   StoredSetting,
 } from '../types/settings'
 
-const AUTO_RULE_IDS: AutoRuleId[] = ['finish-series', 'in-progress', 'new-in-series']
+// Canonical rule order (also the Auto-mode priority order). Keep in step with
+// AutoRuleId in types/queue.ts and DEFAULT_AUTO_RULES in lib/queue.ts.
+export const AUTO_RULE_IDS: AutoRuleId[] = [
+  'finish-series',
+  'in-progress',
+  'new-in-series',
+  'book-club',
+]
+
+/**
+ * Reconcile a stored queueAutoRules array with the canonical rule set: keep the
+ * user's on/off choices and order for rules they have, append any rules added
+ * since they last saved (on by default), and drop ids no longer known. Lets a
+ * new rule (e.g. book-club) surface for existing users without a migration.
+ */
+export function normalizeAutoRules(stored: unknown): AutoRulePref[] {
+  const arr = Array.isArray(stored) ? (stored as AutoRulePref[]) : []
+  const byId = new Map(
+    arr
+      .filter((r) => r && AUTO_RULE_IDS.includes(r.id) && typeof r.on === 'boolean')
+      .map((r) => [r.id, r] as const),
+  )
+  return AUTO_RULE_IDS.map((id) => byId.get(id) ?? { id, on: true })
+}
 
 // True if v is a valid queueAutoRules array: entries of { id: AutoRuleId, on }.
 function isAutoRules(v: unknown): boolean {
