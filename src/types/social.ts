@@ -119,16 +119,21 @@ export interface HSNotesResponse {
 // one current book), per-book chat, member progress race, and unread cursors.
 // See docs/social.md.
 
-/** One book in a club's reading history. finishedAt null = the club's current
- * book (exactly one per club). title/author are snapshots so history renders
- * even if the item later leaves ABS. */
+/** One book in a club's reading timeline. A book is in exactly one of three
+ * states: queued (queuedAt set, not yet started), current (started, finishedAt
+ * null), or finished (finishedAt stamped). title/author are snapshots so the
+ * timeline renders even if the item later leaves ABS. */
 export interface HSClubBook {
   libraryItemId: string
   title: string
   author: string
   addedBy: string
+  /** ms epoch when this book became the current book, or 0 while it's queued. */
   startedAt: number
   finishedAt: number | null
+  /** ms epoch when the book was added to the up-next queue; null once it has
+   * been promoted to the current book (or if it was never queued). */
+  queuedAt: number | null
 }
 
 /** A club summary. currentBook is the one book with finishedAt null, or null if
@@ -166,13 +171,17 @@ export interface HSClubsResponse {
   joinable: HSClub[]
 }
 
-/** GET /hs/clubs/:id response: the club, its full book history, members with
+/** GET /hs/clubs/:id response: the club, its book history (current + finished,
+ * ordered by startedAt), the up-next queue (ordered by queuedAt), members with
  * progress in the viewed book, that book's notes (gated), and the unread count.
  * locked stubs are only present for the current book. */
 export interface HSClubDetail {
   enabled: boolean
   club: HSClub
   books: HSClubBook[]
+  /** Books lined up to read next, ordered oldest-queued first. The owner
+   * promotes the front of this list to become the current book. */
+  queue: HSClubBook[]
   members: HSClubMember[]
   notes: {
     notes: HSNote[]
