@@ -11,9 +11,14 @@ ABS change or a small refactor is a one-file edit, not a three-repo hunt.
 
 - `src/types/abs.ts` - the canonical AudiobookShelf response shapes (the single
   source of truth; each app previously kept its own drifting copy/subset).
-- `src/lib/absEndpoints.ts` - machine-readable ABS endpoint paths
-  (`ABS_ENDPOINTS`), socket event names, and the offline-sync rule flags
-  (`ABS_OFFLINE_SYNC_RULES`). Import these instead of hardcoding paths.
+- `docs/architecture.md` - **read this first.** How the repos fit together and
+  who talks to whom: every client has one connection (to a HearthShelf host),
+  which multiplexes ABS (`/abs-api/*`) and HearthShelf-native (`/hs/*`) surfaces.
+  Explains where an endpoint/type belongs.
+- `src/lib/absEndpoints.ts` - machine-readable endpoint paths: `ABS_ENDPOINTS`
+  (ABS routes) and `HS_ENDPOINTS` (HearthShelf `/hs/*` routes), plus socket event
+  names and the offline-sync rule flags (`ABS_OFFLINE_SYNC_RULES`). Import these
+  instead of hardcoding paths; apps prepend their own transport prefix.
 - `docs/abs-api-reference.md` - the **full ABS API map**: every route with its
   params, response shape, auth gate, emitted socket events, and the
   offline-sync conflict rules. Cross-repo reference (visible in every consumer at

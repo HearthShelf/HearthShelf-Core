@@ -12,10 +12,15 @@
 > **every** HTTP route, its request shape, response shape, auth/permission gate,
 > and side effects (including the Socket.io events each emits).
 >
+> **Read `docs/architecture.md` first.** Clients never call ABS directly - they
+> reach it through a HearthShelf host's `/abs-api/*` proxy (one connection, to
+> us). The ABS routes below are what that proxy forwards to. The architecture
+> guide explains the topology and the parallel `/hs/*` HearthShelf-native surface.
+>
 > **Companion module:** machine-readable endpoint paths and the offline-sync rule
 > flags are exported from `@hearthshelf/core` as `ABS_ENDPOINTS` /
-> `ABS_OFFLINE_SYNC_RULES` (`src/lib/absEndpoints.ts`). Import those in code
-> instead of hardcoding paths; read this doc for the behavior behind them.
+> `HS_ENDPOINTS` / `ABS_OFFLINE_SYNC_RULES` (`src/lib/absEndpoints.ts`). Import
+> those in code instead of hardcoding paths; read this doc for ABS behavior.
 >
 > **Why this exists:** offline sync in the mobile app broke because the exact
 > conflict-resolution rules of the session/progress endpoints weren't written

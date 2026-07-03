@@ -1,10 +1,19 @@
-// Machine-readable map of the AudiobookShelf (ABS) HTTP API + the offline-sync
-// rules that govern progress reconciliation. Shared across every HearthShelf
-// surface so paths and sync semantics are defined once, not hardcoded per repo.
+// Machine-readable maps of the two HTTP surfaces every HearthShelf client uses,
+// plus the offline-sync rules that govern progress reconciliation. Shared across
+// every surface so paths and sync semantics are defined once, not per repo.
 //
-// The prose companion (every route's params, response shape, auth gate, and the
-// socket events it emits) is `docs/abs-api-reference.md` in this package.
-// Response shapes are typed in `src/types/abs.ts`.
+//   ABS_ENDPOINTS - AudiobookShelf routes (library/item/playback/progress data).
+//   HS_ENDPOINTS  - HearthShelf-native `/hs/*` routes (features ABS lacks).
+//
+// IMPORTANT: these are PATHS, not URLs, and clients never call ABS directly.
+// Every client has one connection - to a HearthShelf host - which multiplexes by
+// path: ABS paths are reached via the host's `/abs-api/*` proxy, `/hs/*` via the
+// host's own backend. Core owns the contract (paths + shapes); each app owns the
+// transport that prepends `/abs-api` (or the origin) at call time. See
+// `docs/architecture.md` for the full who-talks-to-whom.
+//
+// Prose companion for ABS behavior (params, responses, auth, socket events):
+// `docs/abs-api-reference.md`. ABS response shapes: `src/types/abs.ts`.
 //
 // Verified against ABS 2.35.1. Pure constants + path builders - no DOM, no Node.
 
@@ -157,6 +166,63 @@ export const ABS_OFFLINE_FLUSH_ENDPOINT = ABS_ENDPOINTS.sessionLocalAll
  */
 export const ABS_OFFLINE_SESSION_REQUIRED_FIELDS = ['id', 'libraryItemId', 'currentTime', 'timeListening', 'updatedAt'] as const
 
+// --- HearthShelf-native endpoints (/hs/*) --------------------------------
+//
+// Features ABS has no concept of, served by the HearthShelf backend
+// (HearthShelf/server/routes/*). Same transport rule: reached via the
+// HearthShelf host at `/hs/*`. Authenticated by the caller's ABS bearer token,
+// which the backend resolves to (serverId, userId). Implementation reference:
+// HearthShelf/server/index.js (dispatcher) + server/routes/. Not an ABS
+// passthrough - only these fixed feature routes exist.
+
+export const HS_ENDPOINTS = {
+  // Discovery / AI
+  questgiverConfig: '/hs/questgiver/config',
+  questgiverRecommend: '/hs/questgiver/recommend',
+  questgiverRuns: '/hs/questgiver/runs',
+  questgiverAdminConfig: '/hs/questgiver/admin/config',
+  discover: '/hs/discover',
+  discoverFeedback: '/hs/discover/feedback',
+  discoverPopular: '/hs/discover/popular',
+
+  // Cross-device user state
+  settings: '/hs/settings',
+  queue: '/hs/queue',
+
+  // Social
+  socialLeaderboard: '/hs/social/leaderboard',
+  socialFinishedCount: '/hs/social/finished-count',
+  socialFinishedBy: '/hs/social/finished-by',
+  socialListeningNow: '/hs/social/listening-now',
+  socialCommunityConfig: '/hs/social/community-config',
+
+  // Clubs / notes
+  clubs: '/hs/clubs',
+  notes: '/hs/notes',
+
+  // Stats / narrators (HS-native; ABS has none)
+  stats: '/hs/stats',
+  narrators: '/hs/narrators',
+  narratorImages: '/hs/narrators/images',
+
+  // Finished-books / Hardcover
+  finishedBooks: '/hs/finished-books',
+  finishedBooksHardcover: '/hs/finished-books/hardcover',
+
+  // Integrations (admin) + external catalogs
+  integrationsConfig: '/hs/integrations/config',
+  audibleSearch: '/hs/audible/search',
+  rmabSearch: '/hs/rmab/search',
+  rmabRequests: '/hs/rmab/requests',
+  audplexusConfig: '/hs/audplexus/config',
+
+  // Service accounts / runtime / telemetry
+  serviceAccounts: '/hs/service-accounts',
+  runtime: '/hs/runtime',
+  telemetry: '/hs/telemetry'
+} as const
+
 export type ABSEndpoints = typeof ABS_ENDPOINTS
 export type ABSSocketEvents = typeof ABS_SOCKET_EVENTS
 export type ABSOfflineSyncRules = typeof ABS_OFFLINE_SYNC_RULES
+export type HSEndpoints = typeof HS_ENDPOINTS
