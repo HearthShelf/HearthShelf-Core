@@ -261,7 +261,7 @@ const DEFS: SettingDef[] = [
   },
   {
     key: 'skipForwardCustom',
-    scope: 'device',
+    scope: 'account',
     type: 'number',
     min: 5,
     max: 300,
@@ -270,7 +270,7 @@ const DEFS: SettingDef[] = [
   },
   {
     key: 'skipBackCustom',
-    scope: 'device',
+    scope: 'account',
     type: 'number',
     min: 5,
     max: 300,
