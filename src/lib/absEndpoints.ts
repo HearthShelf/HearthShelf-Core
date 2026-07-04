@@ -87,6 +87,11 @@ export const ABS_ENDPOINTS = {
   // Library items
   item: (libraryItemId: string) => `/api/items/${libraryItemId}`,
   itemCover: (libraryItemId: string) => `/api/items/${libraryItemId}/cover`,
+  // The item's primary EPUB, streamed as application/epub+zip. Auth via Bearer
+  // header (JSON transports) or ?token= query (media loaders that can't set
+  // headers). Fetch as an ArrayBuffer for epub.js - a URL lets it sniff the
+  // extension and mis-handle the cross-origin auth.
+  itemEbook: (libraryItemId: string) => `/api/items/${libraryItemId}/ebook`,
   itemsBatchGet: '/api/items/batch/get',
 
   // Collections / Playlists
