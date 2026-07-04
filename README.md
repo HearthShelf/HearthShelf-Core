@@ -1,8 +1,14 @@
 # @hearthshelf/core
 
+[![Website](https://img.shields.io/badge/site-hearthshelf.com-2c6e6b)](https://hearthshelf.com)
+[![Docs](https://img.shields.io/badge/docs-docs.hearthshelf.com-2c6e6b)](https://docs.hearthshelf.com)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+
 Shared **types** and **pure logic** for every HearthShelf surface - the
-self-hosted web SPA (`HearthShelf`), the hosted front door (`HearthShelf-WebApp`),
-and the mobile app (`HearthShelf-Mobile`).
+self-hosted web SPA ([`HearthShelf`](https://github.com/HearthShelf/HearthShelf)),
+the hosted front door ([`HearthShelf-WebApp`](https://github.com/HearthShelf/HearthShelf-WebApp)),
+and the mobile app ([`HearthShelf-Mobile`](https://github.com/HearthShelf/HearthShelf-Mobile)).
+All three consume this repo as a git submodule at `packages/core`.
 
 The point: ABS response shapes and common helpers live in **one place**, so an
 ABS change or a small refactor is a one-file edit, not a three-repo hunt.
@@ -60,10 +66,15 @@ After pulling changes that bump the submodule pointer:
 git submodule update --remote packages/core   # or: npm run sync-core
 ```
 
-## Wiring recipe (for the remaining repos)
+## Wiring (all three consumers are wired)
 
-`HearthShelf-Mobile` is already wired (reference implementation). To wire the two
-web repos (`HearthShelf`, `HearthShelf-WebApp`):
+`HearthShelf`, `HearthShelf-WebApp`, and `HearthShelf-Mobile` each consume this
+repo as a `packages/core` submodule, aliased to `@hearthshelf/core` via their
+`tsconfig` `paths` plus a bundler resolver (Vite `resolve.alias` on the web repos,
+Expo `experiments.tsconfigPaths` on mobile). Each app runs `npm run sync-core`
+(`git submodule update --remote packages/core`) to pull the latest core.
+
+To bootstrap a **new** consumer:
 
 1. **Add the submodule:**
    ```bash
@@ -79,32 +90,13 @@ web repos (`HearthShelf`, `HearthShelf-WebApp`):
    }
    ```
 
-3. **Teach the bundler the alias.** These are Vite apps, so add to `vite.config.ts`:
+3. **Teach the bundler the alias.** For a Vite app, add to `vite.config.ts`:
    ```ts
    resolve: { alias: { '@hearthshelf/core': path.resolve(__dirname, 'packages/core/src') } }
    ```
-   (Mobile used Expo's `experiments.tsconfigPaths`, so no bundler change there.)
+   (Expo apps use `experiments.tsconfigPaths` instead, so no bundler change.)
 
-4. **Repoint imports + delete the duplicates:**
-   - **HearthShelf** (the canonical source): its `src/api/types.ts` IS what core
-     was copied from. Either replace its body with `export * from '@hearthshelf/core'`
-     (keeps `@/api/types` importers working), or repoint importers to core and
-     delete it. Same for
-     `src/lib/{format,letterBucket,libraryFilters,discover,questgiver}.ts`
-     (discover + questgiver now live in core too - HearthShelf still has the
-     local copies until it's wired).
-   - **HearthShelf-WebApp** (the messy one): its ABS types are inline/scattered
-     across `src/api/abs*.ts` with **naming drift** (`AbsLibraryItem` vs core's
-     `ABSLibraryItem`). Repoint to core's names; expect to touch ~10 files and fix
-     the casing. Delete its copies of the shared lib files; pull `discover` +
-     `questgiver` from core (WebApp doesn't have them yet - this is how it gets
-     the discovery/taste features).
-
-5. **Typecheck.** Expect core's stricter (more correct) types to surface a few
-   latent bugs - e.g. nullable fields the local subset typed as non-null. That's
-   the feature working. (Mobile hit exactly one: `displayAuthor: string | null`.)
-
-6. **Add the sync script** to `package.json`:
+4. **Add the sync script** to `package.json`:
    ```json
    "sync-core": "git submodule update --remote packages/core"
    ```

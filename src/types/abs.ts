@@ -616,7 +616,7 @@ export interface ABSListeningStats {
 
 // --- Listening stats (HearthShelf backend, /hs/stats) ---
 // Computed server-side from ABS /api/me/listening-stats so every client (mobile,
-// web, absorb, widgets) shows identical numbers instead of each reimplementing
+// web, widgets) shows identical numbers instead of each reimplementing
 // the streak/week walk. Clients that hit an older server without /hs/stats fall
 // back to reading raw ABSListeningStats and computing via lib/stats.ts.
 

@@ -32,7 +32,7 @@ export function weekSeconds(byDay: Record<string, number>, now: Date): number {
 /**
  * Consecutive days with any listening, ending today. If today has no listening
  * yet, the count starts from yesterday so an in-progress day doesn't reset the
- * streak. Capped at 365. (Algorithm from the absorb client's _currentStreak.)
+ * streak. Capped at 365.
  */
 export function computeStreak(byDay: Record<string, number>, now: Date): number {
   let streak = 0

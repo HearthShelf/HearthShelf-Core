@@ -19,7 +19,7 @@ That HearthShelf host multiplexes by URL path:
 | --- | --- | --- |
 | `/abs-api/*` | ABS (prefix stripped) | HearthShelf clients making ABS REST calls |
 | `/abs-socket/*` | ABS socket.io | HearthShelf clients' realtime socket |
-| `/api`, `/socket.io`, `/auth`, `/public`, `/hls`, `/feed`, `/s` (raw) | ABS verbatim | native ABS clients (e.g. ABSORB) pointed at our host |
+| `/api`, `/socket.io`, `/auth`, `/public`, `/hls`, `/feed`, `/s` (raw) | ABS verbatim | native AudiobookShelf clients pointed at our host |
 | `/hs/*` | the HearthShelf backend (`server/`) | HearthShelf clients using HS-native features |
 | everything else | the HearthShelf SPA (static) | browsers loading the app |
 
