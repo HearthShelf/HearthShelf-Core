@@ -42,6 +42,12 @@ export interface ABSServerSettings {
   bookshelfView?: string
   dateFormat?: string
   timeFormat?: string
+  // Backups (editable via PATCH /api/settings). backupSchedule is a cron string,
+  // or false when auto-backups are disabled (ABS's default). Changing it
+  // reschedules the cron live, no restart. maxBackupSize is in GB (0 = no cap).
+  backupSchedule?: string | false
+  backupsToKeep?: number
+  maxBackupSize?: number
 }
 
 // /status (unauthenticated) - used to discover available auth methods.

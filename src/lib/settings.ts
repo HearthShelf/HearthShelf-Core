@@ -156,6 +156,11 @@ const DEFS: SettingDef[] = [
   { key: 'chapterBarrier', scope: 'account', type: 'boolean', default: true },
   // Default playback rate a fresh book starts at. Fractional, so not int.
   { key: 'defaultSpeed', scope: 'account', type: 'number', min: 0.5, max: 3.5, default: 1 },
+  // Tap the full-player artwork to play/pause. Off by default so a tap on the
+  // cover keeps its existing meaning (lightbox / immersive) unless opted in.
+  { key: 'tapArtworkTogglesPlay', scope: 'account', type: 'boolean', default: false },
+  // Double-tap the margins beside the full-player artwork to skip back/forward.
+  { key: 'skipHotspots', scope: 'account', type: 'boolean', default: true },
 
   // --- Cover display (account) - mobile ---
   {
