@@ -253,7 +253,11 @@ const DEFS: SettingDef[] = [
   },
 
   // --- Account & privacy (account) ---
-  { key: 'useGravatar', scope: 'account', type: 'boolean', default: false },
+  // Tri-state: null = never chose (fall back to the user's Gravatar by their
+  // email - the persisted default is ON). true/false = the user's own explicit
+  // choice. Only written once the user actually toggles it, so it stays one
+  // account-wide setting no client redefines a default for.
+  { key: 'useGravatar', scope: 'account', type: 'triBool', default: null },
   // Tri-state: null = never chose (follow the server's community default).
   { key: 'shareReadBooks', scope: 'account', type: 'triBool', default: null },
   // Tri-state: null = never chose (follow the server's community default, which
