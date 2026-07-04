@@ -2,7 +2,14 @@
 // notes, detect pops, and cluster timeline markers the same way. No I/O, no
 // store access - plain data in, plain data out. See docs/social.md.
 
-import type { HSNote, HSNoteStub, HSClubMember, TimelineMarker } from '../types/social'
+import type {
+  HSNote,
+  HSNoteStub,
+  HSClubMember,
+  TimelineMarker,
+  ClubRecBasis,
+  ClubRecPick,
+} from '../types/social'
 
 /**
  * Client-side optimistic re-gating of cached notes as the reader's position
@@ -238,4 +245,127 @@ export function clusterTimelineMarkers(
       })),
     }
   })
+}
+
+// --- Club next-book recommendation ------------------------------------------
+//
+// When a club is nearly done with its current book and has nothing queued, the
+// owner can ask for a next-book pick. The taste that drives the pick is either
+// the genres the club has read together (club-history) or the genres every
+// member has finished across the whole library (all-members-finished); the
+// server resolves whichever the owner chose into a plain genre->weight map and
+// a candidate pool, and these pure helpers turn that into a prompt or a
+// deterministic pick set. See docs/social.md.
+
+/** A book the club could read next: an unstarted library item, decoupled from
+ * ABS types so this stays pure (the server maps ABS items to this). */
+export interface ClubRecCandidate {
+  libraryItemId: string
+  title: string
+  author: string
+  genre: string // primary bucket
+  genres: string[] // all genre tokens (for weight matching)
+  hours: number
+}
+
+/** The club's combined taste: how strongly each genre pulls (higher = more the
+ * club leans that way), plus the raw finished/read count that produced it (for
+ * the intro copy). Built by the server from the chosen basis. */
+export interface ClubTaste {
+  /** genre -> weight; only genres with weight > 0 need be present. */
+  weights: Record<string, number>
+  /** The dominant genre (highest weight), or null when the club has no history. */
+  dominant: string | null
+  /** How many finished/read books fed the taste (for the intro sentence). */
+  sampleSize: number
+}
+
+const REC_COUNT = 4
+
+// A candidate's pull = the best taste weight across its genre tokens.
+function tasteWeightOf(taste: ClubTaste, c: ClubRecCandidate): number {
+  const gs = c.genres.length ? c.genres : [c.genre]
+  return Math.max(0, ...gs.map((g) => taste.weights[g] || 0))
+}
+
+/**
+ * Deterministic club recommender - always available, needs no AI provider.
+ * Scores candidates by how well their genres match the club's taste, nudged by
+ * length, and returns the top REC_COUNT with a plain reason each. `rand` is
+ * injectable for testing; the tiny jitter only breaks ties among equal-weight
+ * picks so the list isn't alphabetical. Returns { intro, picks }.
+ */
+export function clubHeuristic(
+  taste: ClubTaste,
+  candidates: ClubRecCandidate[],
+  basis: ClubRecBasis,
+  rand: () => number = Math.random,
+): { intro: string; picks: ClubRecPick[] } {
+  const scored = candidates
+    .map((c) => ({ c, w: tasteWeightOf(taste, c) }))
+    .map((x) => ({ ...x, s: x.w + (x.c.hours > 0 ? 0 : -1) + rand() * 0.5 }))
+    // Keep only candidates that actually match a genre the club leans toward,
+    // unless the club has no taste at all (then everything is fair game).
+    .filter((x) => x.w > 0 || taste.dominant == null)
+    .sort((a, b) => b.s - a.s)
+
+  const picks: ClubRecPick[] = scored.slice(0, REC_COUNT).map((x) => ({
+    libraryItemId: x.c.libraryItemId,
+    title: x.c.title,
+    author: x.c.author,
+    genre: x.c.genre,
+    reason: taste.dominant
+      ? `A ${x.c.genre} pick that fits what your club keeps coming back to.`
+      : `A well-matched ${x.c.genre} listen to start your club's shelf.`,
+  }))
+
+  const source = basis === 'all-members-finished' ? "everyone's finished books" : "your club's reading"
+  const intro = taste.dominant
+    ? `Based on ${source} - mostly ${taste.dominant} - here's what your club could read next.`
+    : "Here's what your club could read next."
+  return { intro, picks }
+}
+
+/**
+ * Build the AI prompt for a club next-book pick. Mirrors qgCraftPrompt's shape
+ * (profile lines + candidate table + JSON-only instruction) but framed for a
+ * group, and asks the model to return libraryItemIds it can only choose from the
+ * candidate list. The server runs this through the same provider path as
+ * QuestGiver and parses the same JSON envelope.
+ */
+export function craftClubPrompt(
+  clubName: string,
+  memberCount: number,
+  taste: ClubTaste,
+  candidates: ClubRecCandidate[],
+  basis: ClubRecBasis,
+): string {
+  const weightLines = Object.entries(taste.weights)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([g, v]) => `  ${g}: ${v}/10`)
+    .join('\n')
+  const pool = candidates
+    .map((c) => `${c.libraryItemId} | ${c.title} — ${c.author} | ${c.genre} | ${c.hours}h`)
+    .join('\n')
+  const source =
+    basis === 'all-members-finished'
+      ? `the ${taste.sampleSize} books the club's ${memberCount} members have finished`
+      : `the ${taste.sampleSize} books the club has read together`
+  return [
+    'You are QuestGiver, an audiobook matchmaker inside HearthShelf. Recommend the next book for a reading club.',
+    '',
+    `CLUB: "${clubName}" (${memberCount} ${memberCount === 1 ? 'member' : 'members'}).`,
+    `Its taste is drawn from ${source}; dominant genre: ${taste.dominant || 'varied'}.`,
+    '',
+    'GENRE LEANINGS (higher = the club reads more of it):',
+    weightLines || '  (none yet)',
+    '',
+    'CANDIDATES (id | title — author | genre | length):',
+    pool,
+    '',
+    `Pick ${REC_COUNT} from the candidate ids, best-first, that suit the whole club (not one member).`,
+    'Each reason is ONE warm, specific sentence a librarian would say to the group.',
+    'Return ONLY JSON, no prose: {"intro":"one sentence","picks":[{"id":"...","reason":"..."}]}',
+  ].join('\n')
 }

@@ -136,6 +136,13 @@ export interface HSClubBook {
   queuedAt: number | null
 }
 
+/** What the club's next-book recommendation is based on:
+ *   off                  - the owner has turned recommendations off for this club
+ *   club-history         - the genres of books the club has read together
+ *   all-members-finished - the genres every member has finished (read from ABS)
+ * Only the owner sets it; default is club-history. See docs/social.md. */
+export type ClubRecBasis = 'off' | 'club-history' | 'all-members-finished'
+
 /** A club summary. currentBook is the one book with finishedAt null, or null if
  * the club has no current book. */
 export interface HSClub {
@@ -147,6 +154,29 @@ export interface HSClub {
   createdAt: number
   memberCount: number
   currentBook: HSClubBook | null
+  /** The basis the owner chose for next-book recommendations. */
+  recBasis: ClubRecBasis
+}
+
+/** One recommended next book for a club, resolved to a real library item so the
+ * owner can add it straight to the club's up-next queue. */
+export interface ClubRecPick {
+  libraryItemId: string
+  title: string
+  author: string
+  genre: string
+  /** One warm sentence on why it fits the club. */
+  reason: string
+}
+
+/** POST /hs/clubs/:id/recommend response. `engine` says whether the picks came
+ * from the AI provider or the deterministic fallback; `basis` echoes what they
+ * were built from. picks is empty when the library has no fitting candidate. */
+export interface ClubRecommendation {
+  engine: 'ai' | 'heuristic'
+  basis: ClubRecBasis
+  intro: string
+  picks: ClubRecPick[]
 }
 
 /** A club member with their progress in the book being viewed. Progress fields
