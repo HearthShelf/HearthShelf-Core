@@ -49,14 +49,24 @@ export interface OwnedSeriesBook {
 }
 
 // Audible entries for a series that aren't among the owned books - the "unowned"
-// books. Matches an owned book to an Audible entry by series SEQUENCE first (the
-// reliable signal inside one series), then by normalized title, so differently-
-// formatted titles/authors or duplicate owned copies no longer read as missing.
-// Orders the result by numeric Audible sequence.
+// books. When the server has stamped each roster book with an `owned` flag (the
+// ASIN-accurate, library-wide precompute), that is authoritative and used
+// directly. Otherwise (older servers) it falls back to matching the roster
+// against `ownedBooks` by series SEQUENCE first (the reliable signal inside one
+// series), then by normalized title - so differently-formatted titles/authors or
+// duplicate owned copies don't read as missing. Ordered by numeric sequence.
 export function missingSeriesBooks(
   audibleBooks: readonly HSAudibleSeriesBook[],
   ownedBooks: readonly OwnedSeriesBook[],
 ): HSAudibleSeriesBook[] {
+  const bySequence = (a: HSAudibleSeriesBook, b: HSAudibleSeriesBook) =>
+    (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0)
+
+  // Server-provided owned flags are authoritative when present on any book.
+  if (audibleBooks.some((b) => typeof b.owned === 'boolean')) {
+    return audibleBooks.filter((b) => b.title && b.owned === false).sort(bySequence)
+  }
+
   const ownedSeqs = new Set<string>()
   const ownedTitles = new Set<string>()
   for (const b of ownedBooks) {
@@ -72,7 +82,7 @@ export function missingSeriesBooks(
       if (s && ownedSeqs.has(s)) return false
       return !ownedTitles.has(normalizeTitle(b.title))
     })
-    .sort((a, b) => (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0))
+    .sort(bySequence)
 }
 
 export interface SeriesCompletion {

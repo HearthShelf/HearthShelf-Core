@@ -389,9 +389,13 @@ export interface HSAudibleSearchResponse {
   hasMore: boolean
 }
 
-/** A series child book: a search result plus its series sequence. */
+/** A series child book: a search result plus its series sequence. `owned` is set
+ *  by the server when it has precomputed the roster against the ABS library (a
+ *  library-wide fact, ASIN-accurate); absent on older servers, where clients fall
+ *  back to matching the roster against owned books locally. */
 export interface HSAudibleSeriesBook extends HSAudibleSearchResult {
   sequence: string | null
+  owned?: boolean
 }
 
 /** GET /hs/audible/series response. Empty (`seriesAsin: null, books: []`) when unresolved. */
