@@ -59,6 +59,26 @@ export interface HSRuntimeInfo {
   serverName: string | null
   serverId: string
   hsVersion: string | null
+  // AIO first-run only: whether the wizard can offer "Restore from backup"
+  // (ABS is up and has no root yet). False on slim/hosted and on a set-up box.
+  restoreAvailable?: boolean
+}
+
+// The honest outcome summary the restore-from-backup onboarding path returns,
+// so the wizard states exactly what was and wasn't restored (never overstating).
+export interface RestoreSummary {
+  absRestored: boolean
+  hsRestored: boolean
+  hsFresh: boolean
+  userCount: number | null
+  warnings: string[]
+  reconcile: {
+    serviceRootMissing: boolean
+    missingServiceIds: string[]
+    connectionsRewritten: number
+    items: { referenced: number; sampled: number; matched: number; zeroMatch: boolean }
+    needsAttention: boolean
+  } | null
 }
 
 // --- QuestGiver (/hs/questgiver/*) ----------------------------------------
