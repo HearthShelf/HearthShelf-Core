@@ -7,26 +7,71 @@
 
 import type { HSAudibleSeriesBook } from '../types/hs'
 
-// The dedup key that pairs an owned library book with an Audible catalog entry.
-// ABS has no cross-catalog id, so we match on title + author, case-folded and
-// trimmed. Kept in one place so owned-side and Audible-side keys never drift.
-export function ownedKeyOf(
-  title: string | null | undefined,
-  author: string | null | undefined,
-): string {
-  return `${(title ?? '').trim()}|${(author ?? '').trim()}`.toLowerCase()
+// Normalize a book title for cross-catalog matching. ABS and Audible format the
+// same title differently (subtitles, ", Book 4" suffixes, punctuation, spacing),
+// which used to make owned books look unowned. Strip a trailing series/volume
+// suffix, drop everything after a colon (subtitle), remove punctuation, and
+// collapse whitespace so "Taken to the Stars, Book 4" and "Taken to the Stars"
+// compare equal.
+export function normalizeTitle(title: string | null | undefined): string {
+  return (title ?? '')
+    .toLowerCase()
+    .replace(/:\s.*$/, '') // drop subtitle after a colon
+    .replace(/[,\-–—]?\s*(book|volume|vol|part|#)\s*\d+(\.\d+)?\s*$/i, '') // trailing "Book 4"
+    .replace(/[^\p{L}\p{N}\s]/gu, '') // strip punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-// Audible entries for a series that aren't in the owned set - the "unowned"
-// books. Filters out untitled entries (nothing to dedupe or show) and any whose
-// owned-key is already present, then orders by numeric Audible sequence so they
-// slot in after the owned books in reading order.
+// A number key for a series sequence ("4", "2.5", "#4 ") -> "4"/"2.5", or '' when
+// there's no parseable number. Used as the primary match signal: within one
+// resolved series, same sequence == same book regardless of title/author text.
+export function seqKey(sequence: string | number | null | undefined): string {
+  if (sequence == null) return ''
+  const n = parseFloat(String(sequence).replace(/[^\d.]/g, ''))
+  return Number.isFinite(n) ? String(n) : ''
+}
+
+// Parse a book's sequence within a series from ABS's denormalized seriesName,
+// e.g. "Taken to the Stars #4" -> "4", "Foundation #2.5" -> "2.5". '' when none.
+// Clients build owned-book match info with this so every surface parses alike.
+export function seriesSeqFromName(seriesName: string | null | undefined): string {
+  const m = (seriesName ?? '').match(/#\s*([\d.]+)\s*$/)
+  return m ? m[1] : ''
+}
+
+// An owned book, reduced to just what series-matching needs. `sequence` is the
+// book's position in THIS series (parsed from ABS's denormalized seriesName,
+// e.g. "Taken to the Stars #4" -> "4"); pass null/'' when unknown.
+export interface OwnedSeriesBook {
+  title: string | null | undefined
+  sequence?: string | number | null
+}
+
+// Audible entries for a series that aren't among the owned books - the "unowned"
+// books. Matches an owned book to an Audible entry by series SEQUENCE first (the
+// reliable signal inside one series), then by normalized title, so differently-
+// formatted titles/authors or duplicate owned copies no longer read as missing.
+// Orders the result by numeric Audible sequence.
 export function missingSeriesBooks(
   audibleBooks: readonly HSAudibleSeriesBook[],
-  ownedKeys: ReadonlySet<string>,
+  ownedBooks: readonly OwnedSeriesBook[],
 ): HSAudibleSeriesBook[] {
+  const ownedSeqs = new Set<string>()
+  const ownedTitles = new Set<string>()
+  for (const b of ownedBooks) {
+    const s = seqKey(b.sequence)
+    if (s) ownedSeqs.add(s)
+    const t = normalizeTitle(b.title)
+    if (t) ownedTitles.add(t)
+  }
   return audibleBooks
-    .filter((b) => b.title && !ownedKeys.has(ownedKeyOf(b.title, b.author)))
+    .filter((b) => {
+      if (!b.title) return false
+      const s = seqKey(b.sequence)
+      if (s && ownedSeqs.has(s)) return false
+      return !ownedTitles.has(normalizeTitle(b.title))
+    })
     .sort((a, b) => (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0))
 }
 
