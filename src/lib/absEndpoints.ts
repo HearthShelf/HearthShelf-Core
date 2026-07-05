@@ -237,6 +237,14 @@ export const HS_ENDPOINTS = {
   integrationsConfig: '/hs/integrations/config',
   audibleSearch: '/hs/audible/search',
   audibleSeries: '/hs/audible/series',
+
+  // Release subscriptions + push notifications. Notification PREFERENCES are not
+  // here - they ride the settings catalog (/hs/settings) like other account
+  // prefs; the push job reads them via getUserSetting.
+  subscriptions: '/hs/subscriptions',
+  /** One subscription (DELETE to unfollow). */
+  subscription: (id: string) => `/hs/subscriptions/${id}`,
+  pushRegister: '/hs/push/register',
   rmabConfig: '/hs/rmab/config',
   rmabSearch: '/hs/rmab/search',
   rmabRequests: '/hs/rmab/requests',

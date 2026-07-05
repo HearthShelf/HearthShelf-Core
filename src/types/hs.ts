@@ -394,7 +394,11 @@ export interface HSAudibleSearchResult {
   description?: string
   coverArtUrl?: string
   durationMinutes?: number
+  /** Release day, "YYYY-MM-DD" (Audible `release_date`). */
   releaseDate?: string
+  /** Precise publication instant, ISO 8601 (Audible `publication_datetime`).
+   *  Preferred over releaseDate for day-accurate countdowns across time zones. */
+  publicationDatetime?: string
   rating?: number
   series?: string
   seriesAsin?: string
@@ -416,6 +420,10 @@ export interface HSAudibleSearchResponse {
 export interface HSAudibleSeriesBook extends HSAudibleSearchResult {
   sequence: string | null
   owned?: boolean
+  /** True when the book has a future release date (not yet out on Audible).
+   *  Computed server-side against the roster's resolve time; absent on older
+   *  servers, where clients fall back to comparing releaseDate to now. */
+  upcoming?: boolean
 }
 
 /** GET /hs/audible/series response. Empty (`seriesAsin: null, books: []`) when unresolved. */
@@ -424,6 +432,89 @@ export interface HSAudibleSeriesResponse {
   seriesAsin: string | null
   seriesTitle?: string
   books: HSAudibleSeriesBook[]
+}
+
+// --- Release subscriptions + notifications (/hs/subscriptions, /hs/push) ----
+// A user can follow an upcoming book, or a whole series (which tracks every
+// future book in it). The nightly series-roster job resolves these against
+// Audible + the ABS library and fires push notifications. All the display data
+// (title/author/cover/dates) is stored on the subscription so clients - and the
+// Home countdown banner - never refetch Audible to render it.
+
+export type HSSubscriptionKind = 'book' | 'series'
+
+/** A user's follow of an upcoming book or a series. `kind` picks which asin is
+ *  authoritative: a 'book' sub keys on `asin`; a 'series' sub keys on
+ *  `seriesAsin` and auto-covers every future book in that series. */
+export interface HSSubscription {
+  id: string
+  kind: HSSubscriptionKind
+  /** Audible product ASIN (book subs) - the specific book being awaited. */
+  asin?: string
+  /** Audible series ASIN (series subs, and the parent series of a book sub). */
+  seriesAsin?: string
+  title: string
+  author?: string
+  seriesTitle?: string
+  /** Book's position in its series, when known. */
+  sequence?: string | null
+  coverArtUrl?: string
+  narrator?: string
+  durationMinutes?: number
+  releaseDate?: string
+  publicationDatetime?: string
+  /** True once the awaited book has appeared as an owned item in ABS. A series
+   *  sub is never "available" itself; its individual future books resolve. */
+  available?: boolean
+  /** When the awaited book landed in the ABS library (ms epoch), if it has. */
+  availableAt?: number | null
+  createdAt: number
+}
+
+/** POST /hs/subscriptions body. Provide the display fields so the server can
+ *  store them without a round-trip; it backfills any it can from Audible. */
+export interface HSSubscriptionCreate {
+  kind: HSSubscriptionKind
+  asin?: string
+  seriesAsin?: string
+  title: string
+  author?: string
+  seriesTitle?: string
+  sequence?: string | null
+  coverArtUrl?: string
+  narrator?: string
+  durationMinutes?: number
+  releaseDate?: string
+  publicationDatetime?: string
+}
+
+/** GET /hs/subscriptions response. */
+export interface HSSubscriptionsResponse {
+  subscriptions: HSSubscription[]
+}
+
+/** Per-user notification preferences. These live in the settings catalog as the
+ *  notify* keys (account-scoped, synced via /hs/settings); this is the assembled
+ *  view of them that the notifications helpers + push job consume. */
+export interface HSNotificationPrefs {
+  /** Master switch - off silences every notification for this user. */
+  enabled: boolean
+  /** Push when a followed book lands in the ABS library (the "ready to listen"
+   *  moment - the core signal). */
+  notifyAvailableInLibrary: boolean
+  /** Push on the book's Audible release date, even before it syncs into ABS. */
+  notifyOnReleaseDate: boolean
+  /** Push a heads-up this many days before release (0 disables the reminder). */
+  reminderDaysBefore: number
+  /** How many days out a followed book starts showing on the Home countdown
+   *  banner. 1-30, default 14. */
+  countdownWindowDays: number
+}
+
+/** POST /hs/push/register body: an Expo push token for this device. */
+export interface HSPushRegister {
+  token: string
+  platform: 'ios' | 'android'
 }
 
 // --- RMAB (/hs/rmab/*) - thin proxy to ReadMeABook -------------------------

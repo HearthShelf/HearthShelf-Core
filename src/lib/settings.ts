@@ -358,6 +358,33 @@ const DEFS: SettingDef[] = [
     validate: isPlayerActions,
     default: DEFAULT_PLAYER_ACTIONS,
   },
+
+  // --- Release notifications (account) ---
+  // Preferences for followed-book / series push notifications + the Home
+  // countdown banner. Account-scoped so they follow the user across devices; the
+  // server's push job reads them via getUserSetting. Keep in step with
+  // HSNotificationPrefs + DEFAULT_NOTIFICATION_PREFS in lib/notifications.ts.
+  { key: 'notifyEnabled', scope: 'account', type: 'boolean', default: true },
+  { key: 'notifyAvailableInLibrary', scope: 'account', type: 'boolean', default: true },
+  { key: 'notifyOnReleaseDate', scope: 'account', type: 'boolean', default: true },
+  {
+    key: 'notifyReminderDaysBefore',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 30,
+    int: true,
+    default: 3,
+  },
+  {
+    key: 'notifyCountdownWindowDays',
+    scope: 'account',
+    type: 'number',
+    min: 1,
+    max: 30,
+    int: true,
+    default: 14,
+  },
 ]
 
 // The catalog, indexed by key.
