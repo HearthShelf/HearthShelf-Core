@@ -237,6 +237,7 @@ export const HS_ENDPOINTS = {
   integrationsConfig: '/hs/integrations/config',
   audibleSearch: '/hs/audible/search',
   audibleSeries: '/hs/audible/series',
+  audibleProduct: '/hs/audible/product',
 
   // Release subscriptions + push notifications. Notification PREFERENCES are not
   // here - they ride the settings catalog (/hs/settings) like other account
