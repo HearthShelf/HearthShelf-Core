@@ -164,7 +164,7 @@ const DEFS: SettingDef[] = [
   // Turn the full-player cover into a swipeable deck of the live book + the
   // up-next queue. Swiping browses (audio unchanged); tap play on a card to
   // switch. Off = the classic single cover.
-  { key: 'carouselPlayer', scope: 'account', type: 'boolean', default: false },
+  { key: 'carouselPlayer', scope: 'account', type: 'boolean', default: true },
 
   // --- Cover display (account) - mobile ---
   {
