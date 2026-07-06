@@ -161,6 +161,10 @@ const DEFS: SettingDef[] = [
   { key: 'tapArtworkTogglesPlay', scope: 'account', type: 'boolean', default: false },
   // Double-tap the margins beside the full-player artwork to skip back/forward.
   { key: 'skipHotspots', scope: 'account', type: 'boolean', default: true },
+  // Turn the full-player cover into a swipeable deck of the live book + the
+  // up-next queue. Swiping browses (audio unchanged); tap play on a card to
+  // switch. Off = the classic single cover.
+  { key: 'carouselPlayer', scope: 'account', type: 'boolean', default: false },
 
   // --- Cover display (account) - mobile ---
   {
