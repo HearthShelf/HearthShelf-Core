@@ -578,7 +578,16 @@ export interface ABSDeviceInfo {
   browserName?: string
   osName?: string
   deviceName?: string
+  /** Client app identity (e.g. "HearthShelf", "HearthShelf Mobile",
+   *  "HearthShelf iOS", "HearthShelf Auto"). Set verbatim by each client. */
   clientName?: string
+  /** Stable per-client id (e.g. "hearthshelf-web", "hearthshelf-auto",
+   *  "hearthshelf-ios-carplay"). The most reliable surface signal. */
+  deviceId?: string
+  clientVersion?: string
+  manufacturer?: string
+  model?: string
+  sdkVersion?: number
 }
 
 export interface ABSListeningSession {

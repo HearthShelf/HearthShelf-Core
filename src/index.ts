@@ -9,6 +9,7 @@
 export * from './types/index.ts'
 export * from './lib/absEndpoints.ts'
 export * from './lib/format.ts'
+export * from './lib/deviceKind.ts'
 export * from './lib/letterBucket.ts'
 export * from './lib/libraryFilters.ts'
 export * from './lib/stats.ts'
