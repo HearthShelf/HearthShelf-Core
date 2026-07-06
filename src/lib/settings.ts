@@ -199,6 +199,13 @@ const DEFS: SettingDef[] = [
   { key: 'unifiedHome', scope: 'account', type: 'boolean', default: false },
   { key: 'showOthersBooks', scope: 'account', type: 'boolean', default: true },
 
+  // --- Search (account) ---
+  // When on, Search also looks up titles you don't own (via the server's Audible
+  // catalog lookup) and shows them in a "Not in your library" section, so you can
+  // request them if the request backend is set up. Off = Search only covers your
+  // own library. On by default; account-scoped so the choice follows you.
+  { key: 'searchExternalSources', scope: 'account', type: 'boolean', default: true },
+
   // --- Sleep (account) ---
   {
     key: 'sleepRewindSec',
