@@ -554,6 +554,10 @@ export interface ABSMediaProgress {
   progress: number
   currentTime: number
   isFinished: boolean
+  // ABS epoch-ms timestamp of the last progress write. Used to order in-progress
+  // books by recency (newest-touched first). Optional: locally-built stub rows
+  // may omit it.
+  lastUpdate?: number
 }
 
 // GET /api/me - the caller's full progress list, for library filter chips

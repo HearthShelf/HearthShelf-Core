@@ -91,10 +91,18 @@ export function buildAutoQueue({
         for (const b of s.books.slice(idx + 1)) push(b.id)
       }
     } else if (id === 'in-progress') {
-      // Other books the user has started but not finished.
-      for (const it of items) {
-        if (isStarted(it.id, progressById)) push(it.id)
-      }
+      // Other books the user has started but not finished, most-recently-touched
+      // first. Recency order matters: the book you just left (e.g. by switching
+      // in the player carousel) is the newest-touched in-progress book after the
+      // now-current one, so it lands at the top of up-next ("next up") rather
+      // than wherever it happened to sit in the library's item order.
+      const started = items.filter((it) => isStarted(it.id, progressById))
+      started.sort((a, b) => {
+        const la = Number(progressById.get(a.id)?.lastUpdate ?? 0)
+        const lb = Number(progressById.get(b.id)?.lastUpdate ?? 0)
+        return lb - la
+      })
+      for (const it of started) push(it.id)
     } else if (id === 'new-in-series') {
       // Series the user has started (any book finished or in progress) but not
       // completed: queue the remaining unfinished books in sequence.
