@@ -397,6 +397,14 @@ const DEFS: SettingDef[] = [
     int: true,
     default: 14,
   },
+
+  // --- External book links (account) ---
+  // Per-provider toggles for the search-link icons shown on a book's detail
+  // page (Goodreads/Audible/Hardcover). All on by default (matches the prior
+  // hardcoded behavior); account-scoped so the choice follows the user.
+  { key: 'externalLinkGoodreads', scope: 'account', type: 'boolean', default: true },
+  { key: 'externalLinkAudible', scope: 'account', type: 'boolean', default: true },
+  { key: 'externalLinkHardcover', scope: 'account', type: 'boolean', default: true },
 ]
 
 // The catalog, indexed by key.
