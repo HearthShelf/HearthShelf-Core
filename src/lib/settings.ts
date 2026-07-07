@@ -21,6 +21,7 @@ export const AUTO_RULE_IDS: AutoRuleId[] = [
   'in-progress',
   'new-in-series',
   'book-club',
+  'manual',
 ]
 
 /**

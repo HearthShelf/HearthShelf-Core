@@ -4,11 +4,15 @@
 import type { ABSLibraryItem, ABSMediaProgress, ABSSeries } from '../types/abs'
 import type { AutoRuleId, AutoRulePref, QueueEntry } from '../types/queue'
 
+// Default Auto-mode rule order (= priority). 'manual' sits last on purpose:
+// Auto's suggestions play first, and the user's hand-queued list is what comes
+// after ("when I finish the series and the new releases, read this next").
 export const DEFAULT_AUTO_RULES: AutoRulePref[] = [
   { id: 'finish-series', on: true },
   { id: 'in-progress', on: true },
   { id: 'new-in-series', on: true },
   { id: 'book-club', on: true },
+  { id: 'manual', on: true },
 ]
 
 interface BuildAutoQueueArgs {
@@ -28,6 +32,11 @@ interface BuildAutoQueueArgs {
   // list still produces a usable entry. Optional so existing callers are
   // unaffected; the rule no-ops when omitted.
   clubBooks?: QueueEntry[]
+  // The user's durable hand-queued list, in their chosen order. Drives the
+  // 'manual' rule so a hand-picked queue survives every Auto rebuild. Each
+  // entry carries its own title/author, so a manual pick queues even if it's
+  // not in this library's item list. Optional; the rule no-ops when omitted.
+  manualBooks?: QueueEntry[]
 }
 
 function entryOf(item: ABSLibraryItem): QueueEntry {
@@ -58,6 +67,7 @@ export function buildAutoQueue({
   currentItemId,
   rules,
   clubBooks = [],
+  manualBooks = [],
 }: BuildAutoQueueArgs): QueueEntry[] {
   const itemById = new Map(items.map((i) => [i.id, i]))
   // Series that contain the current book (for "finish current series").
@@ -121,6 +131,11 @@ export function buildAutoQueue({
       // order the caller supplied. Club books carry their own title/author, so
       // they queue even if they aren't in this library's item list.
       for (const b of clubBooks) push(b.libraryItemId, b)
+    } else if (id === 'manual') {
+      // The user's hand-queued list, in their order. De-dupe (via push/seen)
+      // means a book an earlier rule already surfaced won't queue twice - the
+      // manual list acts as a fallback for whatever the other rules didn't add.
+      for (const b of manualBooks) push(b.libraryItemId, b)
     }
   }
 

@@ -17,7 +17,11 @@ export interface QueueEntry {
 export type QueueMode = 'off' | 'manual' | 'auto' | 'playlist'
 
 // Ordered, toggleable rules that drive Auto mode. Order = priority.
-export type AutoRuleId = 'finish-series' | 'in-progress' | 'new-in-series' | 'book-club'
+//  - manual: the books the user queued by hand (their durable manual list),
+//    spliced into Auto at this rule's position so a hand-picked queue survives
+//    every Auto rebuild instead of being overwritten. In Manual mode this same
+//    list is the whole queue.
+export type AutoRuleId = 'finish-series' | 'in-progress' | 'new-in-series' | 'book-club' | 'manual'
 
 export interface AutoRulePref {
   id: AutoRuleId
@@ -25,9 +29,16 @@ export interface AutoRulePref {
 }
 
 /** The /hs/queue GET/PUT payload. `updatedAt` (ms) is the conflict key - the
- * server rejects a PUT whose updatedAt is older than the stored row. */
+ * server rejects a PUT whose updatedAt is older than the stored row.
+ *
+ * `items` is the ACTIVE up-next list the player pops from - in Auto/Playlist
+ * mode it's rebuilt (ephemeral); in Manual mode it mirrors `manual`. `manual`
+ * is the user's DURABLE hand-queued list: it drives Manual mode and, in Auto
+ * mode, is spliced in at the 'manual' rule's position. Auto rebuilds never
+ * overwrite `manual`. */
 export interface QueueState {
   items: QueueEntry[]
+  manual: QueueEntry[]
   playlistId: string | null
   updatedAt: number
 }
