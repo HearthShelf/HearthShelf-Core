@@ -31,6 +31,36 @@ export interface HSFinishedCount {
   count: number
 }
 
+// --- Compare (HearthShelf backend, /hs/social/compare) ---
+// The caller's own numbers alongside a comparison target's: the whole-server
+// aggregate (scope=server, no identity leaked) or a single opted-in user
+// (?userId, drawn only from the leaderboard's privacy-filtered roster). Read
+// from ABS's database like the rest of /hs/social. See HearthShelf's stats plan.
+
+/** A comparable set of listening totals for one subject (the caller, a user, or
+ * the server aggregate). Seconds + finished-book counts, no identity. */
+export interface HSCompareStats {
+  booksFinished: number
+  secondsListened: number
+  /** Distinct days with any listening, when available (server aggregate omits). */
+  activeDays: number | null
+}
+
+/** GET /hs/social/compare response. `me` is always the caller's numbers;
+ * `target` is the comparison subject. For scope=server, `target` holds the
+ * per-user AVERAGE across eligible users and `scope` is 'server'; for a user
+ * comparison `scope` is 'user' and `username`/`userId` name the target.
+ * `available` is false when the ABS database isn't mounted. */
+export interface HSCompareResponse {
+  available: boolean
+  scope: 'server' | 'user'
+  me: HSCompareStats
+  target: HSCompareStats
+  /** Present only for a user comparison. */
+  userId?: string
+  username?: string
+}
+
 /** One user who finished a book, privacy-filtered server-side. */
 export interface HSFinishedByUser {
   userId: string

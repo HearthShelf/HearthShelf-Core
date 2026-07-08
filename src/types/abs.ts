@@ -662,8 +662,47 @@ export interface HSListeningStats {
   activeDays: number
   /** Raw seconds-per-day map (YYYY-MM-DD), for the week bars + heatmap. */
   byDay: Record<string, number>
+  /** Seconds listened per weekday, keyed '0'..'6' (Sun..Sat) - ABS's own
+   * dayOfWeek bucketing, passed through for the day-of-week bar chart. */
+  byDayOfWeek: Record<string, number>
   /** Per-item all-time listening, sorted desc at build time. */
   mostListened: HSStatsItem[]
+  /** All-time distinct books finished. null when the ABS database isn't mounted
+   * (a slim install without the read-only volume) - the field is derived from a
+   * direct ABS-db read, not the REST listening-stats payload. */
+  booksFinished: number | null
+  /** Distinct books finished since Jan 1 of the current year. null when the ABS
+   * database isn't mounted (same source as booksFinished). */
+  booksThisYear: number | null
+  /** All-time count of recorded listening sessions (ABS /api/sessions total).
+   * null when the session count couldn't be read. */
+  sessionCount: number | null
+}
+
+// --- Listening history (HearthShelf backend, /hs/stats/history) ---
+// HS owns a durable daily listening history that ABS never keeps: a nightly
+// snapshot job appends one immutable row per user per day. Unlocks the full
+// heatmap (every day since the job started, surviving ABS restarts/re-scans),
+// trend lines, and durable longest-ever streaks. See HearthShelf's stats plan.
+
+/** One day of a user's snapshotted listening history. */
+export interface HSStatsHistoryDay {
+  /** Local day bucket, 'YYYY-MM-DD'. */
+  date: string
+  /** Seconds listened that day. */
+  secondsListened: number
+  /** Recorded listening sessions that day. */
+  sessions: number
+  /** Distinct books finished that day. */
+  booksFinished: number
+}
+
+/** GET /hs/stats/history response: the caller's daily rows, oldest first.
+ * `available` is false when the ABS database isn't mounted (no snapshot source),
+ * in which case `days` is empty. */
+export interface HSStatsHistory {
+  available: boolean
+  days: HSStatsHistoryDay[]
 }
 
 // --- Social (HearthShelf backend, /hs/social/*) ---

@@ -51,6 +51,46 @@ export function activeDays(byDay: Record<string, number>): number {
   return n
 }
 
+/** Average seconds listened per active day. 0 when there are no active days. */
+export function avgPerActiveDay(totalSec: number, activeDayCount: number): number {
+  if (!activeDayCount) return 0
+  return totalSec / activeDayCount
+}
+
+/** Average seconds per session. 0 when there are no sessions. */
+export function avgSession(totalSec: number, sessionCount: number): number {
+  if (!sessionCount) return 0
+  return totalSec / sessionCount
+}
+
+/**
+ * Normalize ABS's dayOfWeek bucketing into a dense '0'..'6' (Sun..Sat) map with
+ * every weekday present (0 for weekdays with no listening), for the 7-bar chart.
+ * ABS keys dayOfWeek by weekday NAME ('Sunday'..'Saturday'); older/other shapes
+ * may key by index. Both are folded to the numeric index here.
+ */
+export function dayOfWeekTotals(
+  dayOfWeek: Record<string, number> | undefined | null,
+): Record<string, number> {
+  const names: Record<string, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  }
+  const out: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 }
+  for (const [key, val] of Object.entries(dayOfWeek ?? {})) {
+    const seconds = typeof val === 'number' ? val : 0
+    const named = names[key.trim().toLowerCase()]
+    const idx = named !== undefined ? named : Number.parseInt(key, 10)
+    if (Number.isInteger(idx) && idx >= 0 && idx <= 6) out[String(idx)] += seconds
+  }
+  return out
+}
+
 /** All-time per-item listening, resolved + sorted desc, for "Most listened". */
 export function mostListened(items: ABSListeningStats['items']): HSStatsItem[] {
   return Object.entries(items ?? {})
@@ -81,6 +121,13 @@ export function computeListeningStats(raw: ABSListeningStats, now: Date): HSList
     dayStreak: computeStreak(byDay, now),
     activeDays: activeDays(byDay),
     byDay,
+    byDayOfWeek: dayOfWeekTotals(raw.dayOfWeek),
     mostListened: mostListened(raw.items),
+    // ABS-db-derived fields: the /hs/stats server route fills these from a direct
+    // read of ABS's database. Clients computing locally from the REST payload
+    // (older-server fallback) can't reach that data, so they stay null.
+    booksFinished: null,
+    booksThisYear: null,
+    sessionCount: null,
   }
 }
