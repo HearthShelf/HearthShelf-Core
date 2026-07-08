@@ -248,6 +248,9 @@ export interface HSFinishedBook {
   rating: number | null
   hardcoverBookId: string | null
   hardcoverSyncedAt: number | null
+  /** ms epoch when this finish was written back into ABS's mediaProgress (so it
+   * counts toward the ABS-derived stats page), or null if not yet backfilled. */
+  absSyncedAt: number | null
   createdAt: number
   updatedAt: number
 }
@@ -306,12 +309,19 @@ export interface HSFinishedBookImportRow {
 /** POST /hs/finished-books/import body. */
 export interface HSFinishedBooksImportRequest {
   rows: HSFinishedBookImportRow[]
+  /** When true, also mark matched rows finished in ABS with their backdated
+   * dateFinished, so they count toward the stats page. Stub rows (no match) are
+   * unaffected - a later promotion job backfills them once their book exists. */
+  backfillAbs?: boolean
 }
 
 /** POST /hs/finished-books/import response. */
 export interface HSUpsertResult {
   inserted: number
   updated: number
+  /** How many matched rows were written into ABS as finished (0 unless
+   * backfillAbs was set). Absent/0 on servers where the write path is disabled. */
+  absBackfilled?: number
 }
 
 /** POST /hs/finished-books/sync-abs response. */
