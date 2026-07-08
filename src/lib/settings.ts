@@ -405,6 +405,20 @@ const DEFS: SettingDef[] = [
   { key: 'externalLinkGoodreads', scope: 'account', type: 'boolean', default: true },
   { key: 'externalLinkAudible', scope: 'account', type: 'boolean', default: true },
   { key: 'externalLinkHardcover', scope: 'account', type: 'boolean', default: true },
+
+  // --- Reading goal (account) ---
+  // How many books the user aims to finish this calendar year. 0 = no goal set;
+  // the Stats page shows progress against booksThisYear when this is > 0.
+  // Account-scoped so the goal follows the user across devices.
+  {
+    key: 'yearlyBookGoal',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 1000,
+    int: true,
+    default: 0,
+  },
 ]
 
 // The catalog, indexed by key.
