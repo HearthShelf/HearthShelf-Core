@@ -273,6 +273,17 @@ const DEFS: SettingDef[] = [
     int: true,
     default: 5,
   },
+  // What shake-to-extend does when many shakes fire in a row (a phone jostling on
+  // a walk, not a deliberate wake-up). off = keep adding; limit = stop adding but
+  // keep the timer; disable = end the timer so playback isn't silenced. Mobile
+  // renders this; account-scoped so it follows the user across devices.
+  {
+    key: 'sleepShakeExcessive',
+    scope: 'account',
+    type: 'enum',
+    values: ['off', 'limit', 'disable'],
+    default: 'limit',
+  },
   { key: 'autoSleep', scope: 'account', type: 'boolean', default: false },
   {
     key: 'autoSleepStart',
