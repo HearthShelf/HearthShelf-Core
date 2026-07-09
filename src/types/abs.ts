@@ -703,6 +703,20 @@ export interface HSHighlightPerson {
   count: number
 }
 
+/** The book a user has finished the most times (re-read / re-listened), for the
+ * "Most re-read" highlight badge. ABS keeps no completion count, so this comes
+ * from HearthShelf's own durable per-(user, book) tracker (book_completions),
+ * which only accrues meaningful data after months of snapshots observe re-finishes.
+ * `completions` is always >= 2 (a single finish is not a re-read). */
+export interface HSHighlightReReadBook {
+  title: string
+  /** How many times the user has finished this book (>= 2). */
+  completions: number
+  /** The owning ABS library-item id, so the client can render a cover. null when
+   * the book is no longer in the library. */
+  libraryItemId: string | null
+}
+
 /** Finished-book highlight badges for the Stats page. Every field is null when
  * the data doesn't exist (no finished books, or no author/narrator recorded). */
 export interface HSStatsHighlights {
@@ -710,6 +724,9 @@ export interface HSStatsHighlights {
   shortestBook: HSHighlightBook | null
   topAuthor: HSHighlightPerson | null
   topNarrator: HSHighlightPerson | null
+  /** The user's most re-read book (>= 2 completions), or null until HS has
+   * observed a re-read. Not derivable from ABS - see HSHighlightReReadBook. */
+  mostReRead: HSHighlightReReadBook | null
 }
 
 // --- Listening history (HearthShelf backend, /hs/stats/history) ---
