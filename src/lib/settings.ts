@@ -166,6 +166,10 @@ const DEFS: SettingDef[] = [
   // up-next queue. Swiping browses (audio unchanged); tap play on a card to
   // switch. Off = the classic single cover.
   { key: 'carouselPlayer', scope: 'account', type: 'boolean', default: true },
+  // Delete a book's local download automatically when you finish it, to free up
+  // space. Applies to any download (manual or auto). Account-scoped so the
+  // choice follows the user across devices. On by default.
+  { key: 'removeDownloadOnFinish', scope: 'account', type: 'boolean', default: true },
 
   // --- Cover display (account) - mobile ---
   {
