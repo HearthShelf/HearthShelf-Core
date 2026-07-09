@@ -693,6 +693,9 @@ export interface HSHighlightBook {
   title: string
   /** The book's canonical length in seconds (books.duration). */
   durationSec: number
+  /** The owning ABS library-item id, so the client can render a cover. null when
+   * the book is no longer in the library. */
+  libraryItemId: string | null
 }
 
 /** A person (author or narrator) and how many of the user's finished books they
