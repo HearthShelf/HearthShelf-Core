@@ -231,7 +231,32 @@ const DEFS: SettingDef[] = [
     int: true,
     default: 20,
   },
+  // Beep before the sleep timer ends. sleepChime is the master on/off; the three
+  // cue toggles pick which warnings fire (2 min / 1 min / right as it stops), so
+  // a listener drifting off gets a heads-up before the audio goes quiet.
+  // sleepBeepSound is the tone; sleepBeepVolume (0-100) is how loud the cue is
+  // relative to the book. Mobile renders these; account-scoped so they follow the
+  // user across devices.
   { key: 'sleepChime', scope: 'account', type: 'boolean', default: false },
+  { key: 'sleepBeepAt2min', scope: 'account', type: 'boolean', default: true },
+  { key: 'sleepBeepAt1min', scope: 'account', type: 'boolean', default: true },
+  { key: 'sleepBeepFinal', scope: 'account', type: 'boolean', default: false },
+  {
+    key: 'sleepBeepSound',
+    scope: 'account',
+    type: 'enum',
+    values: ['chime', 'marimba', 'beep', 'bell'],
+    default: 'chime',
+  },
+  {
+    key: 'sleepBeepVolume',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 100,
+    int: true,
+    default: 60,
+  },
   // Shake the phone to add time to a running sleep timer (mobile renders these;
   // account-scoped so the preference survives reinstalls).
   { key: 'sleepShakeExtend', scope: 'account', type: 'boolean', default: false },
