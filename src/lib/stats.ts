@@ -91,6 +91,41 @@ export function dayOfWeekTotals(
   return out
 }
 
+/**
+ * Average seconds listened per occurrence of each weekday, keyed '0'..'6'
+ * (Sun..Sat). Computed from the byDay date map: for each weekday, sum the
+ * seconds across every date of that weekday PRESENT in byDay, then divide by how
+ * many such dates there are. Unlike byDayOfWeek (a running total that grows the
+ * longer you've listened), this answers "on a typical Monday, how long do I
+ * listen" - comparable across weekdays even though the window holds unequal
+ * counts of each. A weekday absent from byDay averages to 0.
+ *
+ * Only dates already in byDay count as the divisor (ABS's own reporting window),
+ * so a weekday you've never listened on doesn't dilute the others.
+ */
+export function dayOfWeekAverages(byDay: Record<string, number> | undefined | null): Record<string, number> {
+  const sums: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 }
+  const counts: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 }
+  for (const [date, val] of Object.entries(byDay ?? {})) {
+    const seconds = typeof val === 'number' ? val : 0
+    // Parse 'YYYY-MM-DD' as a local date to read its weekday. Constructing from
+    // parts (not Date.parse) avoids the UTC-midnight shift that can bump the day.
+    const parts = date.split('-')
+    if (parts.length !== 3) continue
+    const y = Number.parseInt(parts[0], 10)
+    const m = Number.parseInt(parts[1], 10)
+    const d = Number.parseInt(parts[2], 10)
+    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) continue
+    const idx = new Date(y, m - 1, d).getDay()
+    const key = String(idx)
+    sums[key] += seconds
+    counts[key] += 1
+  }
+  const out: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 }
+  for (const key of Object.keys(out)) out[key] = counts[key] ? sums[key] / counts[key] : 0
+  return out
+}
+
 /** All-time per-item listening, resolved + sorted desc, for "Most listened". */
 export function mostListened(items: ABSListeningStats['items']): HSStatsItem[] {
   return Object.entries(items ?? {})
@@ -122,6 +157,7 @@ export function computeListeningStats(raw: ABSListeningStats, now: Date): HSList
     activeDays: activeDays(byDay),
     byDay,
     byDayOfWeek: dayOfWeekTotals(raw.dayOfWeek),
+    byWeekdayAvg: dayOfWeekAverages(byDay),
     mostListened: mostListened(raw.items),
     // ABS-db-derived fields: the /hs/stats server route fills these from a direct
     // read of ABS's database. Clients computing locally from the REST payload

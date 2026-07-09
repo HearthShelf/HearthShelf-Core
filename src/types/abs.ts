@@ -662,9 +662,13 @@ export interface HSListeningStats {
   activeDays: number
   /** Raw seconds-per-day map (YYYY-MM-DD), for the week bars + heatmap. */
   byDay: Record<string, number>
-  /** Seconds listened per weekday, keyed '0'..'6' (Sun..Sat) - ABS's own
-   * dayOfWeek bucketing, passed through for the day-of-week bar chart. */
+  /** Total seconds listened per weekday, keyed '0'..'6' (Sun..Sat) - ABS's own
+   * dayOfWeek bucketing (a running sum), for the "Total" day-of-week bars. */
   byDayOfWeek: Record<string, number>
+  /** Average seconds per occurrence of each weekday, keyed '0'..'6' (Sun..Sat),
+   * derived from byDay - for the "Average" day-of-week bars. See
+   * dayOfWeekAverages. */
+  byWeekdayAvg: Record<string, number>
   /** Per-item all-time listening, sorted desc at build time. */
   mostListened: HSStatsItem[]
   /** All-time distinct books finished. null when the ABS database isn't mounted
