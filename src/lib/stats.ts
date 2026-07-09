@@ -165,5 +165,6 @@ export function computeListeningStats(raw: ABSListeningStats, now: Date): HSList
     booksFinished: null,
     booksThisYear: null,
     sessionCount: null,
+    highlights: null,
   }
 }

@@ -44,6 +44,13 @@ export interface HSCompareStats {
   secondsListened: number
   /** Distinct days with any listening, when available (server aggregate omits). */
   activeDays: number | null
+  /** Average seconds listened per active day. For the server aggregate this is
+   * the mean of each user's own average. Absent on older servers (treat as
+   * undefined -> omit the row). */
+  avgPerActiveDaySec?: number
+  /** Books finished this year (caller-local year). null when the server didn't
+   * compute it; absent on older servers. */
+  booksThisYear?: number | null
 }
 
 /** GET /hs/social/compare response. `me` is always the caller's numbers;

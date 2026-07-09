@@ -681,6 +681,35 @@ export interface HSListeningStats {
   /** All-time count of recorded listening sessions (ABS /api/sessions total).
    * null when the session count couldn't be read. */
   sessionCount: number | null
+  /** Personal "highlight" badges over finished books (longest/shortest book,
+   * most-read author/narrator). null when the ABS database isn't mounted - these
+   * are direct ABS-db reads like booksFinished. Individual fields inside are also
+   * nullable (e.g. a user with no finished book has no extremes). */
+  highlights: HSStatsHighlights | null
+}
+
+/** One finished book identified for a highlight badge (longest / shortest). */
+export interface HSHighlightBook {
+  title: string
+  /** The book's canonical length in seconds (books.duration). */
+  durationSec: number
+}
+
+/** A person (author or narrator) and how many of the user's finished books they
+ * account for, for the most-read highlight badges. */
+export interface HSHighlightPerson {
+  name: string
+  /** Distinct finished books by this author / narrated by this narrator. */
+  count: number
+}
+
+/** Finished-book highlight badges for the Stats page. Every field is null when
+ * the data doesn't exist (no finished books, or no author/narrator recorded). */
+export interface HSStatsHighlights {
+  longestBook: HSHighlightBook | null
+  shortestBook: HSHighlightBook | null
+  topAuthor: HSHighlightPerson | null
+  topNarrator: HSHighlightPerson | null
 }
 
 // --- Listening history (HearthShelf backend, /hs/stats/history) ---
@@ -701,12 +730,27 @@ export interface HSStatsHistoryDay {
   booksFinished: number
 }
 
-/** GET /hs/stats/history response: the caller's daily rows, oldest first.
- * `available` is false when the ABS database isn't mounted (no snapshot source),
- * in which case `days` is empty. */
+/** One calendar month of a user's snapshotted history, rolled up from the daily
+ * rows. Powers the "by month" averages card. */
+export interface HSStatsMonth {
+  /** Month bucket, 'YYYY-MM'. */
+  month: string
+  /** Total seconds listened that month. */
+  seconds: number
+  /** Total books finished that month. */
+  books: number
+  /** Days that month with any listening (seconds > 0). */
+  activeDays: number
+}
+
+/** GET /hs/stats/history response: the caller's daily rows (oldest first) plus a
+ * per-month rollup. `available` is false when the ABS database isn't mounted (no
+ * snapshot source), in which case both arrays are empty. `months` is absent on
+ * older servers that predate the rollup - treat as []. */
 export interface HSStatsHistory {
   available: boolean
   days: HSStatsHistoryDay[]
+  months?: HSStatsMonth[]
 }
 
 // --- Social (HearthShelf backend, /hs/social/*) ---
