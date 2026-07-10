@@ -3,28 +3,36 @@
 // The ABS server stores whatever the client sent in `deviceInfo` and enriches
 // it with osName/browserName parsed from the User-Agent for browser clients.
 // Native clients (mobile, CarPlay, Android Auto) send a stable `clientName` +
-// `deviceId` but no browser/OS, so those are the reliable signal for them. We
-// check the client identity first, then fall back to OS/browser heuristics for
-// third-party or unknown clients.
+// `deviceId`, and our phone app now also stamps `osName` ("iOS"/"Android") so an
+// Apple phone can be told apart from an Android one. We check the client
+// identity first, then fall back to OS/browser heuristics for third-party or
+// unknown clients.
+//
+// The `kind` is a platform token, not a Material Symbols glyph - Material
+// Symbols has no Apple/Android brand logos, so each UI maps the token to its own
+// brand icon (mobile: MaterialCommunityIcons apple/android; web: inline SVG).
 
 import type { ABSDeviceInfo } from '../types/abs.ts'
 
-export type DeviceKind = 'car' | 'phone' | 'tablet' | 'browser' | 'desktop'
+/** Where a listening session came from, as a brand/surface the UI can icon. */
+export type DeviceKind =
+  /** Native app on an Apple phone/tablet (iPhone, iPad). */
+  | 'apple'
+  /** Native app on an Android phone/tablet. */
+  | 'android'
+  /** An in-car surface: CarPlay, Android Auto, or the web player's car mode. */
+  | 'car'
+  /** A normal web browser. */
+  | 'web'
+  /** Unknown / generic desktop client. */
+  | 'desktop'
 
 export interface DeviceKindInfo {
   kind: DeviceKind
-  /** Material Symbols glyph name for this kind. */
-  icon: string
-  /** Short human label, e.g. "Android Auto", "Phone", "Web". */
+  /** Platform token, same as `kind`. Each UI maps this to its own brand icon. */
+  icon: DeviceKind
+  /** Short human label, e.g. "Apple", "Android", "CarPlay", "Web". */
   label: string
-}
-
-const ICONS: Record<DeviceKind, string> = {
-  car: 'directions_car',
-  phone: 'smartphone',
-  tablet: 'tablet',
-  browser: 'language',
-  desktop: 'computer',
 }
 
 function has(hay: string | undefined, ...needles: string[]): boolean {
@@ -40,38 +48,48 @@ export function classifyDevice(info: ABSDeviceInfo | undefined): DeviceKindInfo 
   const browser = info?.browserName
   const name = info?.deviceName
 
-  // 1. The web player running in in-car (large touch) mode tags itself.
+  // 1. In-car surfaces come first - a CarPlay session is on an Apple device, but
+  //    we want the car icon, not the Apple one. The web player's in-car mode and
+  //    our two native head-unit clients all announce themselves by deviceId.
   if (has(id, 'web-car')) {
-    return { kind: 'car', icon: ICONS.car, label: 'Car (Web)' }
+    return { kind: 'car', icon: 'car', label: 'Car (Web)' }
+  }
+  if (has(id, 'carplay') || has(client, 'carplay')) {
+    return { kind: 'car', icon: 'car', label: 'CarPlay' }
+  }
+  if (has(id, 'auto') || has(client, 'android auto', 'auto')) {
+    return { kind: 'car', icon: 'car', label: 'Android Auto' }
+  }
+  // Third-party clients that name themselves as automotive (e.g. Tesla browser).
+  if (has(client, 'car', 'tesla')) {
+    return { kind: 'car', icon: 'car', label: 'Car' }
   }
 
-  // 2. Our own native in-car clients announce themselves by deviceId first
-  //    (most stable), then clientName as a fallback.
-  if (has(id, 'carplay', 'auto') || has(client, 'auto', 'carplay')) {
-    const label = has(id, 'carplay') || has(client, 'carplay') ? 'CarPlay' : 'Android Auto'
-    return { kind: 'car', icon: ICONS.car, label }
+  // 2. Our phone app stamps osName so Apple and Android split apart. deviceId
+  //    also carries the platform suffix ("hearthshelf-mobile-ios"/"-android").
+  if (
+    has(os, 'ios', 'iphone', 'ipad', 'mac') ||
+    has(id, 'ios', 'iphone', 'ipad') ||
+    has(name, 'iphone', 'ipad')
+  ) {
+    return { kind: 'apple', icon: 'apple', label: 'Apple' }
+  }
+  if (has(os, 'android') || has(id, 'android') || has(client, 'android')) {
+    return { kind: 'android', icon: 'android', label: 'Android' }
   }
 
-  // 3. Third-party clients that name themselves as automotive.
-  if (has(client, 'android auto', 'carplay', 'car')) {
-    return { kind: 'car', icon: ICONS.car, label: 'Car' }
+  // 3. Older phone sessions predate the platform stamp: a generic mobile client
+  //    with no OS. We cannot tell Apple from Android, so fall back to Android's
+  //    generic phone-shaped glyph rather than guessing a brand.
+  if (has(id, 'mobile') || has(client, 'mobile')) {
+    return { kind: 'android', icon: 'android', label: 'Phone' }
   }
 
-  // 4. Tablets before phones (a tablet UA often also matches the mobile OS).
-  if (has(os, 'ipados') || has(name, 'ipad', 'tablet')) {
-    return { kind: 'tablet', icon: ICONS.tablet, label: 'Tablet' }
-  }
-
-  // 5. Phones: our mobile client, or a mobile OS from the parsed UA.
-  if (has(id, 'mobile') || has(client, 'mobile') || has(os, 'android', 'ios', 'iphone')) {
-    return { kind: 'phone', icon: ICONS.phone, label: 'Phone' }
-  }
-
-  // 6. A parsed browser means a web session on a computer.
+  // 4. A parsed browser means a web session.
   if (browser) {
-    return { kind: 'browser', icon: ICONS.browser, label: 'Web' }
+    return { kind: 'web', icon: 'web', label: 'Web' }
   }
 
-  // 7. Nothing distinctive - treat as a desktop client.
-  return { kind: 'desktop', icon: ICONS.desktop, label: 'Desktop' }
+  // 5. Nothing distinctive - treat as a generic desktop client.
+  return { kind: 'desktop', icon: 'desktop', label: 'Desktop' }
 }
