@@ -85,11 +85,22 @@ export function classifyDevice(info: ABSDeviceInfo | undefined): DeviceKindInfo 
     return { kind: 'android', icon: 'android', label: 'Phone' }
   }
 
-  // 4. A parsed browser means a web session.
+  // 4. Our own web client. ABS only fills browserName/osName from a real
+  //    User-Agent, but the web player opens sessions with a bespoke
+  //    deviceId ("hearthshelf-web") + clientName ("HearthShelf") and no UA
+  //    parse, so those sessions arrive with browserName undefined. Match them
+  //    by identity here, before the browser fallback, so a browser listen reads
+  //    as "Web" instead of falling through to the generic desktop glyph.
+  //    (The in-car web player, "hearthshelf-web-car", is already caught in 1.)
+  if (has(id, 'web') || has(client, 'hearthshelf')) {
+    return { kind: 'web', icon: 'web', label: 'Web' }
+  }
+
+  // 5. A parsed browser means a third-party web session.
   if (browser) {
     return { kind: 'web', icon: 'web', label: 'Web' }
   }
 
-  // 5. Nothing distinctive - treat as a generic desktop client.
+  // 6. Nothing distinctive - treat as a generic desktop client.
   return { kind: 'desktop', icon: 'desktop', label: 'Desktop' }
 }
