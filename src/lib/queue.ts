@@ -11,6 +11,10 @@ export const DEFAULT_AUTO_RULES: AutoRulePref[] = [
   { id: 'finish-series', on: true },
   { id: 'in-progress', on: true },
   { id: 'new-in-series', on: true },
+  // Modifier on new-in-series. Off by default: a started series contributes
+  // only its next unfinished book, so a big backlog doesn't flood up-next.
+  // Turn on to queue every remaining book in each started series.
+  { id: 'new-in-series-all', on: false },
   { id: 'book-club', on: true },
   { id: 'manual', on: true },
 ]
@@ -76,16 +80,23 @@ export function buildAutoQueue({
   const collected: QueueEntry[] = []
   const seen = new Set<string>()
   // Push a library-item id. `fallback` supplies title/author for ids not in the
-  // library list (club books), so they still produce a usable entry.
-  const push = (id: string, fallback?: QueueEntry) => {
-    if (id === currentItemId) return
-    if (isFinished(id, progressById)) return
+  // library list (club books), so they still produce a usable entry. Returns
+  // true if it actually added an entry (so callers can count real additions,
+  // not skipped ones), false if it was dropped (current/finished/dupe/unknown).
+  const push = (id: string, fallback?: QueueEntry): boolean => {
+    if (id === currentItemId) return false
+    if (isFinished(id, progressById)) return false
     const item = itemById.get(id)
-    if (!item && !fallback) return
-    if (seen.has(id)) return
+    if (!item && !fallback) return false
+    if (seen.has(id)) return false
     seen.add(id)
     collected.push(item ? entryOf(item) : (fallback as QueueEntry))
+    return true
   }
+
+  // Modifier flag: when on, new-in-series queues every remaining book in a
+  // started series; when off (default), just the next unfinished one.
+  const allNewInSeries = rules.some((r) => r.id === 'new-in-series-all' && r.on)
 
   for (const rule of rules) {
     if (!rule.on) continue
@@ -115,7 +126,10 @@ export function buildAutoQueue({
       for (const it of started) push(it.id)
     } else if (id === 'new-in-series') {
       // Series the user has started (any book finished or in progress) but not
-      // completed: queue the remaining unfinished books in sequence.
+      // completed: queue the next unfinished book in sequence. With the
+      // new-in-series-all modifier on, queue every remaining unfinished book;
+      // otherwise just the first one, so a large backlog of started series
+      // doesn't flood up-next with dozens of books.
       for (const s of series) {
         const touched = s.books.some(
           (b) => isFinished(b.id, progressById) || isStarted(b.id, progressById),
@@ -123,9 +137,17 @@ export function buildAutoQueue({
         const complete = s.books.every((b) => isFinished(b.id, progressById))
         if (!touched || complete) continue
         for (const b of s.books) {
-          if (!isFinished(b.id, progressById)) push(b.id)
+          if (isFinished(b.id, progressById)) continue
+          // Only count books that actually queued (push can skip the current
+          // book, dupes already surfaced by an earlier rule, etc.), so a
+          // limited series still contributes its first real 'next' book.
+          const added = push(b.id)
+          if (added && !allNewInSeries) break
         }
       }
+    } else if (id === 'new-in-series-all') {
+      // Modifier only (see new-in-series above / allNewInSeries). Queues nothing
+      // on its own.
     } else if (id === 'book-club') {
       // What the user's clubs are reading (current book, then up-next), in the
       // order the caller supplied. Club books carry their own title/author, so

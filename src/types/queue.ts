@@ -17,11 +17,19 @@ export interface QueueEntry {
 export type QueueMode = 'off' | 'manual' | 'auto' | 'playlist'
 
 // Ordered, toggleable rules that drive Auto mode. Order = priority.
+//  - new-in-series: for each started-but-unfinished series, queue the next
+//    unfinished book. By default just ONE book per series (the natural
+//    'read next'), so a big backlog of started series doesn't flood up-next.
+//  - new-in-series-all: a MODIFIER on new-in-series (not a source of its own):
+//    when both are on, new-in-series queues EVERY remaining unfinished book in
+//    each series instead of only the next one. No effect unless new-in-series
+//    is also on.
 //  - manual: the books the user queued by hand (their durable manual list),
 //    spliced into Auto at this rule's position so a hand-picked queue survives
 //    every Auto rebuild instead of being overwritten. In Manual mode this same
 //    list is the whole queue.
-export type AutoRuleId = 'finish-series' | 'in-progress' | 'new-in-series' | 'book-club' | 'manual'
+export type AutoRuleId =
+  'finish-series' | 'in-progress' | 'new-in-series' | 'new-in-series-all' | 'book-club' | 'manual'
 
 export interface AutoRulePref {
   id: AutoRuleId

@@ -3,7 +3,7 @@
 // definition of every setting; validateSetting/mergeSettings run identically on
 // client and server. See docs/settings-sync.md in HearthShelf.
 
-import { resolveQueueConflict } from './queue.ts'
+import { resolveQueueConflict, DEFAULT_AUTO_RULES } from './queue.ts'
 import type { AutoRuleId, AutoRulePref } from '../types/queue'
 import type {
   SettingChange,
@@ -20,15 +20,22 @@ export const AUTO_RULE_IDS: AutoRuleId[] = [
   'finish-series',
   'in-progress',
   'new-in-series',
+  'new-in-series-all',
   'book-club',
   'manual',
 ]
 
+// The canonical on/off default per rule, from DEFAULT_AUTO_RULES. A rule added
+// since the user last saved gets ITS default (not a blanket 'on'), so e.g.
+// new-in-series-all surfaces OFF for existing users - the whole point of it
+// being an opt-in modifier.
+const DEFAULT_RULE_ON = new Map(DEFAULT_AUTO_RULES.map((r) => [r.id, r.on] as const))
+
 /**
  * Reconcile a stored queueAutoRules array with the canonical rule set: keep the
  * user's on/off choices and order for rules they have, append any rules added
- * since they last saved (on by default), and drop ids no longer known. Lets a
- * new rule (e.g. book-club) surface for existing users without a migration.
+ * since they last saved (at that rule's default), and drop ids no longer known.
+ * Lets a new rule (e.g. book-club) surface for existing users without a migration.
  */
 export function normalizeAutoRules(stored: unknown): AutoRulePref[] {
   const arr = Array.isArray(stored) ? (stored as AutoRulePref[]) : []
@@ -37,7 +44,7 @@ export function normalizeAutoRules(stored: unknown): AutoRulePref[] {
       .filter((r) => r && AUTO_RULE_IDS.includes(r.id) && typeof r.on === 'boolean')
       .map((r) => [r.id, r] as const),
   )
-  return AUTO_RULE_IDS.map((id) => byId.get(id) ?? { id, on: true })
+  return AUTO_RULE_IDS.map((id) => byId.get(id) ?? { id, on: DEFAULT_RULE_ON.get(id) ?? true })
 }
 
 // True if v is a valid queueAutoRules array: entries of { id: AutoRuleId, on }.
