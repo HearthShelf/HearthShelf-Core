@@ -41,6 +41,13 @@ interface BuildAutoQueueArgs {
   // entry carries its own title/author, so a manual pick queues even if it's
   // not in this library's item list. Optional; the rule no-ops when omitted.
   manualBooks?: QueueEntry[]
+  // Series the user dismissed ("not right now") from Auto sources. A dismissed
+  // series contributes nothing to finish-series / new-in-series. Reversible;
+  // the caller restores by removing the id. Optional; empty = nothing dismissed.
+  dismissedSeriesIds?: Iterable<string>
+  // Individual books the user dismissed from Auto sources (e.g. a Continue-
+  // Listening book they set down for good). Filtered out of every rule.
+  dismissedItemIds?: Iterable<string>
 }
 
 function entryOf(item: ABSLibraryItem): QueueEntry {
@@ -72,8 +79,12 @@ export function buildAutoQueue({
   rules,
   clubBooks = [],
   manualBooks = [],
+  dismissedSeriesIds,
+  dismissedItemIds,
 }: BuildAutoQueueArgs): QueueEntry[] {
   const itemById = new Map(items.map((i) => [i.id, i]))
+  const dismissedSeries = new Set(dismissedSeriesIds ?? [])
+  const dismissedItems = new Set(dismissedItemIds ?? [])
   // Series that contain the current book (for "finish current series").
   const seriesOf = (id: string) => series.filter((s) => s.books.some((b) => b.id === id))
 
@@ -82,10 +93,12 @@ export function buildAutoQueue({
   // Push a library-item id. `fallback` supplies title/author for ids not in the
   // library list (club books), so they still produce a usable entry. Returns
   // true if it actually added an entry (so callers can count real additions,
-  // not skipped ones), false if it was dropped (current/finished/dupe/unknown).
+  // not skipped ones), false if it was dropped (current/finished/dupe/dismissed/
+  // unknown). A dismissed item never queues from any rule.
   const push = (id: string, fallback?: QueueEntry): boolean => {
     if (id === currentItemId) return false
     if (isFinished(id, progressById)) return false
+    if (dismissedItems.has(id)) return false
     const item = itemById.get(id)
     if (!item && !fallback) return false
     if (seen.has(id)) return false
@@ -107,6 +120,7 @@ export function buildAutoQueue({
     if (id === 'finish-series') {
       if (!currentItemId) return
       for (const s of seriesOf(currentItemId)) {
+        if (dismissedSeries.has(s.id)) continue
         const idx = s.books.findIndex((b) => b.id === currentItemId)
         // Books after the current one, in sequence order.
         for (const b of s.books.slice(idx + 1)) push(b.id)
@@ -131,6 +145,7 @@ export function buildAutoQueue({
       // otherwise just the first one, so a large backlog of started series
       // doesn't flood up-next with dozens of books.
       for (const s of series) {
+        if (dismissedSeries.has(s.id)) continue
         const touched = s.books.some(
           (b) => isFinished(b.id, progressById) || isStarted(b.id, progressById),
         )

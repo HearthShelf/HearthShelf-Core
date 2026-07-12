@@ -9,6 +9,15 @@ export interface QueueEntry {
   author: string
 }
 
+// Per-user "not right now" dismissals: series and individual books the user
+// hid from Auto sources (the queue + the Continue-* home shelves). Reversible;
+// stored server-side keyed by (server_id, user_id). Empty arrays = nothing
+// hidden. buildAutoQueue and the shelf builders filter against these.
+export interface Dismissals {
+  seriesIds: string[]
+  itemIds: string[]
+}
+
 // How the up-next queue behaves when a book ends:
 //  - off:      stop at the end of each book
 //  - manual:   play the next book the user queued by hand
