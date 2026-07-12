@@ -7,11 +7,11 @@
 import type { ABSLibraryItem, ABSMediaProgress, ABSSeries } from '../types/abs'
 import type { Dismissals } from '../types/queue'
 
-function isFinished(id: string, progressById: Map<string, ABSMediaProgress>): boolean {
+function isFinished(id: string, progressById: ReadonlyMap<string, ABSMediaProgress>): boolean {
   return !!progressById.get(id)?.isFinished
 }
 
-function isStarted(id: string, progressById: Map<string, ABSMediaProgress>): boolean {
+function isStarted(id: string, progressById: ReadonlyMap<string, ABSMediaProgress>): boolean {
   const p = progressById.get(id)
   return !!p && !p.isFinished && p.progress > 0
 }
@@ -30,7 +30,7 @@ export interface ContinueSeriesEntry {
  */
 export function continueSeriesShelf(
   series: ABSSeries[],
-  progressById: Map<string, ABSMediaProgress>,
+  progressById: ReadonlyMap<string, ABSMediaProgress>,
   dismissed: Dismissals,
 ): ContinueSeriesEntry[] {
   const hiddenSeries = new Set(dismissed.seriesIds)
@@ -63,7 +63,7 @@ export function continueSeriesShelf(
  */
 export function continueListeningShelf(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>,
+  progressById: ReadonlyMap<string, ABSMediaProgress>,
   dismissed: Dismissals,
   currentItemId?: string | null,
 ): ABSLibraryItem[] {
