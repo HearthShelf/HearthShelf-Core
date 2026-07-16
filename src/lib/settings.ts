@@ -173,6 +173,11 @@ const DEFS: SettingDef[] = [
   // up-next queue. Swiping browses (audio unchanged); tap play on a card to
   // switch. Off = the classic single cover.
   { key: 'carouselPlayer', scope: 'account', type: 'boolean', default: true },
+  // Hide the docked mini player (the little bar above the nav that shows the
+  // book that's playing). On = no mini bar; the full player is still reachable
+  // from the Now Playing tab / player nav and a book's Play button. Off (default)
+  // keeps the mini bar. Account-scoped so the choice follows the user.
+  { key: 'hideMiniPlayer', scope: 'account', type: 'boolean', default: false },
   // Delete a book's local download automatically when you finish it, to free up
   // space. Applies to any download (manual or auto). Account-scoped so the
   // choice follows the user across devices. On by default.
