@@ -81,6 +81,14 @@ export interface HSFinishedByResponse {
   users: HSFinishedByUser[]
 }
 
+/** Who finished many items at once (POST {libraryItemIds}, capped 100). For
+ * reader-avatar stacks on library/browse cards. Same privacy filter as the
+ * single-item finished-by. */
+export interface HSFinishedByBulkResponse {
+  available: boolean
+  byItem: Record<string, HSFinishedByUser[]>
+}
+
 // --- Listening now (Phase 3) ---
 // Who is actively (recently) listening to a book. New privacy surface, default
 // OFF; the server filters by the shareCurrentlyListening resolution. UI copy
