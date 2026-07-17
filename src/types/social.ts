@@ -68,12 +68,16 @@ export interface HSCompareResponse {
   username?: string
 }
 
-/** One user who finished a book, privacy-filtered server-side. */
+/** One user's relationship to a book, privacy-filtered server-side. 'finished'
+ * readers are gated by shareReadBooks; 'reading' (started, not finished) by
+ * shareCurrentlyListening. Absent status means 'finished' (older servers). */
 export interface HSFinishedByUser {
   userId: string
   username: string
-  /** ms epoch of the latest finish; ABS keeps no finish history. */
+  /** ms epoch of the latest finish; ABS keeps no finish history. null while
+   * 'reading' (not yet finished). */
   finishedAt: number | null
+  status?: 'finished' | 'reading'
 }
 
 export interface HSFinishedByResponse {
