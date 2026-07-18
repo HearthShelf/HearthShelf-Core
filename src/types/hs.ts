@@ -609,12 +609,44 @@ export interface HSHostedConnectResponse {
   role: 'user' | 'admin'
 }
 
+/**
+ * Health of the ABS admin credential the box uses to provision invited users.
+ * `valid` = the stored credential authenticates as an admin. `stale` = it's dead
+ * but can be re-minted automatically from the service account. `broken` = it's
+ * dead and needs an operator reset. `null` = unknown / not applicable.
+ */
+export type HSAdminCredStatus = 'valid' | 'stale' | 'broken' | null
+
 /** GET /hs/hosted/config status. */
 export interface HSHostedConfigStatus {
   mode: HSMode
   paired: boolean
   hasAbsAdminToken: boolean
   issuer: string | null
+  /** Health of the stored admin credential (drives the Connect fix UI). */
+  adminCredStatus?: HSAdminCredStatus
+  /** Whether a stale/broken credential can be recovered automatically. */
+  canSelfHeal?: boolean
+}
+
+/** GET /hs/hosted/service-health response. */
+export interface HSServiceHealth {
+  state: Exclude<HSAdminCredStatus, null> | 'absent'
+  paired: boolean
+  hasCredential: boolean
+  canSelfHeal?: boolean
+  hasServicePassword?: boolean
+  absUserId?: string | null
+  username?: string | null
+  isService?: boolean
+}
+
+/** POST /hs/hosted/service-credential/override body. */
+export interface HSServiceCredentialOverrideRequest {
+  /** A known-good admin API key / token to store directly. */
+  absAdminToken?: string
+  /** A new service-account password to re-sync and re-mint from. */
+  servicePassword?: string
 }
 
 /** PUT /hs/hosted/config body. */
