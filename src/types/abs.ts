@@ -633,6 +633,27 @@ export interface ABSListeningStats {
   today: number
 }
 
+// --- Server logs ---
+// One log line, shared by ABS's own daily log (/api/logger-data) and the
+// HearthShelf app-log ring (/hs/logs). `source` is the subsystem tag; `level` is
+// a numeric severity (see the admin Logs view's LEVEL_LABEL map).
+export interface ABSLogEntry {
+  timestamp: string
+  source?: string
+  message: string
+  level?: number
+}
+
+/** GET /api/logger-data response (ABS's current daily log). */
+export interface ABSLoggerData {
+  currentDailyLogs: ABSLogEntry[]
+}
+
+/** GET /hs/logs response (HearthShelf's in-process app-log ring). */
+export interface HSAppLogResponse {
+  logs: ABSLogEntry[]
+}
+
 // --- Listening stats (HearthShelf backend, /hs/stats) ---
 // Computed server-side from ABS /api/me/listening-stats so every client (mobile,
 // web, widgets) shows identical numbers instead of each reimplementing
