@@ -162,6 +162,42 @@ const DEFS: SettingDef[] = [
   },
   { key: 'skipBack', scope: 'account', type: 'number', min: 5, max: 300, int: true, default: 15 },
   { key: 'chapterBarrier', scope: 'account', type: 'boolean', default: true },
+
+  // --- When a book counts as finished (see lib/completion.ts) ---
+  // A trailing chapter this short is credits/outro rather than content, so
+  // reaching it finishes the book. 0 disables the rule.
+  {
+    key: 'creditsChapterMaxSec',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 600,
+    int: true,
+    default: 60,
+  },
+  // Stopping this close to the end of the last real chapter still counts as
+  // finishing it (the "paused 2 seconds early" case).
+  {
+    key: 'chapterEndGraceSec',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 300,
+    int: true,
+    default: 15,
+  },
+  // Plex-style percentage floor, for books with no usable chapter data. Percent,
+  // 0 = off. The chapter rules above are sharper; this is only the fallback.
+  {
+    key: 'finishedPercent',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 100,
+    int: true,
+    default: 0,
+  },
+
   // Default playback rate a fresh book starts at. Fractional, so not int.
   { key: 'defaultSpeed', scope: 'account', type: 'number', min: 0.5, max: 3.5, default: 1 },
   // Tap the full-player artwork to play/pause. Off by default so a tap on the
