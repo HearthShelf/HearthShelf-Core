@@ -593,6 +593,102 @@ export interface HSTelemetryStatus {
   payloadPreview: HSTelemetryPayloadPreview
 }
 
+// --- Install telemetry (control-plane POST /telemetry/report wire shape) -----
+// Shared contract for the anonymous install/heartbeat report that BOTH the
+// self-hosted server and the mobile app send to the control plane. Previously
+// the server->control-plane payload was an untyped JS literal duplicated by hand
+// on each end; this is the single source of truth for that wire shape.
+//
+// Anonymity is the whole point: the only identity is `telemetry_id`, a random
+// per-install handle the client mints itself. No user id, no server id, no
+// hostname, no network address. Device model/type are coarse hardware facts
+// (millions share a "Pixel 10 Pro") and only ever surface as aggregates on the
+// public stats page - a single row never leaves the control-plane database.
+
+/** Which kind of install a report came from. `docker` is the only server value
+ *  today; `windows-service` is reserved for the future native server build. */
+export type HSInstallPlatform = 'ios' | 'android' | 'docker' | 'windows-service'
+
+/** Coarse device form factor. `server` for headless installs; the rest map from
+ *  expo-device's DeviceType on mobile. */
+export type HSInstallDeviceType = 'phone' | 'tablet' | 'desktop' | 'server'
+
+/**
+ * The install/heartbeat report body. All fields except `telemetry_id` are
+ * optional so a client can send only what it knows and older clients keep
+ * validating. The control plane clamps/validates every field on ingest.
+ *
+ * Server installs populate the HS/ABS/quest fields (as before) and set
+ * platform='docker', device_type='server'. Mobile installs populate the device
+ * fields (model/type/os) + app_version and leave the server-only counters unset.
+ */
+export interface HSInstallReport {
+  /** Random, client-chosen, opaque. `/^[A-Za-z0-9_-]{8,64}$/`. */
+  telemetry_id: string
+  platform?: HSInstallPlatform
+  /** Human device model, e.g. 'Pixel 10 Pro', 'iPhone17,2'. Null/absent on servers. */
+  device_model?: string | null
+  device_type?: HSInstallDeviceType
+  /** OS family, e.g. 'Android', 'iOS'. */
+  os_name?: string | null
+  os_version?: string | null
+  /** The app/build version string. On mobile this is FULL_VERSION (the release
+   *  tag, e.g. '0.0.2-R2'); on servers it is hs_version. */
+  app_version?: string | null
+  // --- server-only usage fields (unchanged from the original telemetry payload) ---
+  hs_version?: string | null
+  abs_version?: string | null
+  mode?: HSMode
+  user_bucket?: HSTelemetryUserBucket
+  book_bucket?: HSTelemetryBookBucket
+  quests_given?: number
+  quests_accepted?: number
+  books_finished?: number
+  club_books_finished?: number
+  clubs_active?: number
+}
+
+/** One bucket in a public distribution (version, platform, or device model). */
+export interface HSInstallDistItem {
+  key: string
+  count: number
+}
+
+/** One day in the installs-over-time series (UTC midnight epoch ms -> active count). */
+export interface HSInstallTrendPoint {
+  /** UTC-midnight epoch milliseconds for the day bucket. */
+  day: number
+  count: number
+}
+
+/**
+ * Aggregate-only public rollup returned by GET /stats/public and rendered by the
+ * Website stats dashboard. Never contains a raw install row. Extends the original
+ * server-only shape with per-platform counts, device/platform distributions, and
+ * the installs-over-time trend that drives the dashboard chart.
+ */
+export interface HSPublicStats {
+  /** Active installs (seen within the active window) across all platforms. */
+  active_installs: number
+  /** Active installs split by platform, e.g. { ios: 4, android: 6, docker: 12 }. */
+  installs_by_platform: Partial<Record<HSInstallPlatform, number>>
+  /** app_version distribution across all active installs (all platforms). */
+  version_distribution: Record<string, number>
+  /** Device-model distribution (mobile installs only; servers have no model). */
+  device_model_distribution: Record<string, number>
+  /** Daily active-install counts for the trend chart, oldest first. */
+  installs_over_time: HSInstallTrendPoint[]
+  /** The newest app_version seen among active installs (the "latest version" tile). */
+  latest_version: string | null
+  /** Lifetime usage counters, summed across active server installs. */
+  totals: {
+    quests_given: number
+    quests_accepted: number
+    books_finished: number
+    club_books_finished: number
+  }
+}
+
 // --- Hosted setup / pairing (/hs/hosted/*) --------------------------------
 // Host/admin-plane. `connect` is the everyday hosted-SPA login exchange; the rest
 // is the pairing wizard + admin recovery. Several forward control-plane JSON
