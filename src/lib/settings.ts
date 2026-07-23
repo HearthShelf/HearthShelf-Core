@@ -332,7 +332,7 @@ const DEFS: SettingDef[] = [
     values: ['off', 'limit', 'disable'],
     default: 'limit',
   },
-  { key: 'autoSleep', scope: 'account', type: 'boolean', default: false },
+  { key: 'autoSleep', scope: 'account', type: 'boolean', default: true },
   {
     key: 'autoSleepStart',
     scope: 'account',
