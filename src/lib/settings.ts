@@ -4,6 +4,12 @@
 // client and server. See docs/settings-sync.md in HearthShelf.
 
 import { resolveQueueConflict, DEFAULT_AUTO_RULES } from './queue.ts'
+import {
+  DEFAULT_HOME_SECTIONS,
+  DEFAULT_REC_SHELF_COUNT,
+  MAX_REC_SHELF_COUNT,
+  isHomeSections,
+} from './homeSections.ts'
 import type { AutoRuleId, AutoRulePref } from '../types/queue'
 import type {
   SettingChange,
@@ -255,6 +261,28 @@ const DEFS: SettingDef[] = [
   { key: 'libraryFill', scope: 'account', type: 'boolean', default: false },
   { key: 'unifiedHome', scope: 'account', type: 'boolean', default: false },
   { key: 'showOthersBooks', scope: 'account', type: 'boolean', default: true },
+
+  // The Home screen's section arrangement: order + which bands are hidden, from
+  // Home's own edit mode. Account-scoped so a listener's Home looks the same on
+  // every device. homeRecShelfCount caps how many taste-derived rows (genre /
+  // author / narrator) the "More picks for you" block may spawn - see
+  // lib/homeSections.
+  {
+    key: 'homeSections',
+    scope: 'account',
+    type: 'json',
+    validate: isHomeSections,
+    default: DEFAULT_HOME_SECTIONS,
+  },
+  {
+    key: 'homeRecShelfCount',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: MAX_REC_SHELF_COUNT,
+    int: true,
+    default: DEFAULT_REC_SHELF_COUNT,
+  },
 
   // --- Search (account) ---
   // When on, Search also looks up titles you don't own (via the server's Audible

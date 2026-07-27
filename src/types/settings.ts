@@ -60,6 +60,28 @@ export type SettingDef =
 // The catalog, indexed by key for O(1) lookup.
 export type SettingsCatalog = Record<string, SettingDef>
 
+// One arrangeable band on the Home screen. See lib/homeSections for what each
+// id renders as and why the recommendation rows are split the way they are.
+export type HomeSectionId =
+  | 'dashboard'
+  | 'release-countdown'
+  | 'book-club'
+  | 'continue-listening'
+  | 'continue-series'
+  | 'questgiver'
+  | 'recommended'
+  | 'recommended-picks'
+  | 'series-next'
+  | 'recent'
+  | 'recently-added'
+
+// A section's place in the Home arrangement: array position is its order, `on`
+// is whether it shows at all.
+export interface HomeSectionPref {
+  id: HomeSectionId
+  on: boolean
+}
+
 // Result of validateSetting: ok carries the (possibly clamped/coerced) value;
 // otherwise reason is a short machine-ish string for the client to surface.
 export type SettingValidation = { ok: true; value: SettingValue } | { ok: false; reason: string }
