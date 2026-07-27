@@ -206,6 +206,11 @@ const DEFS: SettingDef[] = [
 
   // Default playback rate a fresh book starts at. Fractional, so not int.
   { key: 'defaultSpeed', scope: 'account', type: 'number', min: 0.5, max: 3.5, default: 1 },
+  // Rewind a few seconds when you resume, scaled to how long you were paused, so
+  // a phone call or a night's sleep doesn't drop you mid-sentence. The step sizes
+  // are fixed in the client; this is the on/off. On by default - it's what every
+  // other audiobook player does. Account-scoped so the choice follows the user.
+  { key: 'autoRewind', scope: 'account', type: 'boolean', default: true },
   // Tap the full-player artwork to play/pause. Off by default so a tap on the
   // cover keeps its existing meaning (lightbox / immersive) unless opted in.
   { key: 'tapArtworkTogglesPlay', scope: 'account', type: 'boolean', default: false },
