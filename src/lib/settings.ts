@@ -10,6 +10,14 @@ import {
   MAX_REC_SHELF_COUNT,
   isHomeSections,
 } from './homeSections.ts'
+import {
+  READER_DEFAULTS,
+  READER_SIZE_MIN,
+  READER_SIZE_MAX,
+  READER_BRIGHTNESS_MIN,
+  READER_BRIGHTNESS_MAX,
+} from './reader.ts'
+import type { ReaderPrefs } from './reader.ts'
 import type { AutoRuleId, AutoRulePref } from '../types/queue'
 import type {
   SettingChange,
@@ -98,6 +106,25 @@ const DEFAULT_PLAYER_ACTIONS: Array<{ key: string; placement: string }> = [
   { key: 'cast', placement: 'tray' },
   { key: 'carMode', placement: 'tray' },
 ]
+
+/**
+ * Catalog key for each ebook-reader preference. The reader's own model
+ * (lib/reader.ts) names its fields without a prefix (`theme`, `size`), which
+ * would collide with the app's `theme`, so every reader pref is catalogued under
+ * a `reader*` key. Clients bind their reader store to the settings store through
+ * this map rather than hard-coding the pairs - see the mobile readerPrefs.ts and
+ * the web readerPrefsStore.ts.
+ */
+export const READER_SETTING_KEYS: { readonly [K in keyof ReaderPrefs]: string } = {
+  theme: 'readerTheme',
+  font: 'readerFont',
+  size: 'readerSize',
+  lh: 'readerLh',
+  width: 'readerWidth',
+  align: 'readerAlign',
+  brightness: 'readerBrightness',
+  layout: 'readerLayout',
+}
 
 // Every HearthShelf setting, unified across web + hosted. Absence of a stored
 // row means "use the default here" (sparse storage - the DB holds only what the
@@ -540,6 +567,92 @@ const DEFS: SettingDef[] = [
     int: true,
     default: 0,
   },
+
+  // --- Navigation layout (device) - mobile ---
+  // Swap the full-width bottom tab bar for a floating glass icon pill, and how
+  // that pill is laid out. Device-scoped: it's a per-install UI treatment, but it
+  // IS catalogued so it rides the same backup/restore path as everything else -
+  // an uncatalogued key can never follow a user to a new phone.
+  { key: 'floatingNav', scope: 'device', type: 'boolean', default: false },
+  {
+    key: 'floatingNavOrientation',
+    scope: 'device',
+    type: 'enum',
+    values: ['horizontal', 'vertical'],
+    default: 'horizontal',
+  },
+  // Share anonymous install stats (app version, device model/type, OS) with the
+  // public community dashboard. Device-scoped - it describes this install - and
+  // catalogued so the choice is restored rather than silently re-defaulting to on
+  // when the app is reinstalled.
+  { key: 'shareInstallStats', scope: 'device', type: 'boolean', default: true },
+
+  // --- Ebook reader typography (device) ---
+  // The reader's display prefs, catalogued under READER_SETTING_KEYS. Defaults
+  // and bounds come from READER_DEFAULTS / the READER_* constants in lib/reader
+  // so the catalog can never drift from the reader's own model. Device-scoped
+  // (type size that suits a phone rarely suits a desktop), which still means they
+  // are stored server-side and restored onto a reinstalled or brand-new device.
+  {
+    key: READER_SETTING_KEYS.theme,
+    scope: 'device',
+    type: 'enum',
+    values: ['dark', 'sepia', 'light', 'paper'],
+    default: READER_DEFAULTS.theme,
+  },
+  {
+    key: READER_SETTING_KEYS.font,
+    scope: 'device',
+    type: 'enum',
+    values: ['serif', 'sans', 'dyslexic'],
+    default: READER_DEFAULTS.font,
+  },
+  {
+    key: READER_SETTING_KEYS.size,
+    scope: 'device',
+    type: 'number',
+    min: READER_SIZE_MIN,
+    max: READER_SIZE_MAX,
+    int: true,
+    default: READER_DEFAULTS.size,
+  },
+  {
+    key: READER_SETTING_KEYS.lh,
+    scope: 'device',
+    type: 'enum',
+    values: ['compact', 'normal', 'relaxed'],
+    default: READER_DEFAULTS.lh,
+  },
+  {
+    key: READER_SETTING_KEYS.width,
+    scope: 'device',
+    type: 'enum',
+    values: ['narrow', 'medium', 'wide'],
+    default: READER_DEFAULTS.width,
+  },
+  {
+    key: READER_SETTING_KEYS.align,
+    scope: 'device',
+    type: 'enum',
+    values: ['left', 'justify'],
+    default: READER_DEFAULTS.align,
+  },
+  {
+    key: READER_SETTING_KEYS.brightness,
+    scope: 'device',
+    type: 'number',
+    min: READER_BRIGHTNESS_MIN,
+    max: READER_BRIGHTNESS_MAX,
+    int: true,
+    default: READER_DEFAULTS.brightness,
+  },
+  {
+    key: READER_SETTING_KEYS.layout,
+    scope: 'device',
+    type: 'enum',
+    values: ['scroll', 'paged'],
+    default: READER_DEFAULTS.layout,
+  },
 ]
 
 // The catalog, indexed by key.
@@ -625,6 +738,21 @@ export function mergeSettings(
     const l = local[key]
     const r = remote[key]
     out[key] = l ? resolveQueueConflict(l, r) : r
+  }
+  return out
+}
+
+// Read an ebook-reader prefs object back out of a flat settings map (catalog key
+// -> value), the shape every client's settings store already exposes. Any key
+// that's unset or fails its catalog constraint falls back to the reader default,
+// so a partially-synced device still renders a complete, valid reader.
+export function readerPrefsFrom(values: Record<string, unknown>): ReaderPrefs {
+  const out = { ...READER_DEFAULTS }
+  for (const field of Object.keys(READER_SETTING_KEYS) as (keyof ReaderPrefs)[]) {
+    const v = values[READER_SETTING_KEYS[field]]
+    if (v === undefined) continue
+    const check = validateSetting(READER_SETTING_KEYS[field], v as SettingValue)
+    if (check.ok) (out as Record<string, unknown>)[field] = check.value
   }
   return out
 }
