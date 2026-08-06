@@ -121,6 +121,9 @@ export interface ABSBookMetadata {
   narratorName: string
   seriesName: string
   publishedYear: string | null
+  // Full publication date. A real Book column ABS returns and accepts on the
+  // media PATCH, though ABS's own edit form never exposes it.
+  publishedDate: string | null
   description: string | null
   genres: string[]
   language: string | null
