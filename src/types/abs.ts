@@ -278,18 +278,47 @@ export interface ABSLibraryItemDetail extends Omit<ABSLibraryItem, 'media'> {
   media: ABSBookMediaDetail
 }
 
+// A series membership as ABS's media PATCH accepts it. Matching is by NAME -
+// ABS ignores any id sent here (server/models/Book.js updateSeriesFromRequest),
+// finding-or-creating the series by name within the library.
+//
+// `sequence` MUST be a string: ABS does
+// `typeof seriesObj.sequence === 'string' ? seriesObj.sequence : null`, so a
+// numeric 3 silently WIPES the sequence instead of setting it.
+export interface ABSItemSeriesPatch {
+  name: string
+  sequence: string | null
+}
+
+// An author as ABS's media PATCH accepts it. Like series, matched by name and
+// find-or-created; any id is discarded server-side.
+export interface ABSItemAuthorPatch {
+  name: string
+}
+
 // Editable book metadata - the body of PATCH /api/items/:id/media. Every field
 // is optional; only the keys present are written. null clears a field.
+//
+// CAUTION - series, authors, narrators and genres are REPLACE, not merge. ABS
+// unlinks any series or author whose name is absent from the array you send (an
+// empty array clears them all), so a caller must always submit the COMPLETE
+// list, not a delta. Note `tags` is NOT part of this: it rides as a sibling of
+// `metadata` in the request body.
 export interface ABSItemMetadataPatch {
   title?: string | null
   subtitle?: string | null
   description?: string | null
   publishedYear?: string | null
+  // Accepted by ABS but absent from its own edit form.
+  publishedDate?: string | null
   publisher?: string | null
   language?: string | null
   isbn?: string | null
   asin?: string | null
   genres?: string[]
+  narrators?: string[]
+  series?: ABSItemSeriesPatch[]
+  authors?: ABSItemAuthorPatch[]
   explicit?: boolean
   abridged?: boolean
 }
