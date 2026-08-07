@@ -260,6 +260,38 @@ export interface HSFinishedBooksResponse {
   books: HSFinishedBook[]
 }
 
+/**
+ * One finished book in the completion log (GET /hs/completions).
+ *
+ * Distinct from HSFinishedBook above, which is the import/sync record. This is
+ * HearthShelf's own durable completion counter: `completions` is how many times
+ * the book has been finished, which ABS cannot answer at all (it overwrites a
+ * single finishedAt per user+book on a re-finish).
+ */
+export interface HSCompletion {
+  libraryItemId: string
+  title: string
+  author: string
+  durationSec: number
+  /** Times finished. 1 is a normal finish; >1 is a re-read/re-listen. */
+  completions: number
+  /** ms epoch of the most recent finish, or null when ABS's date was unparseable. */
+  lastFinishedAt: number | null
+}
+
+/**
+ * GET /hs/completions response.
+ *
+ * `available` is false when the ABS database is not mounted - the completion
+ * data has no source on a slim install. Clients must distinguish that from an
+ * empty `rows`, which genuinely means "nothing finished yet".
+ */
+export interface HSCompletionsResponse {
+  available: boolean
+  total: number
+  rows: HSCompletion[]
+}
+
 /** A raw Goodreads CSV row for matching/import. Only title/author/isbn are used. */
 export interface HSGoodreadsRow {
   title: string
