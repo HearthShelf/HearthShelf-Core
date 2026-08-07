@@ -72,6 +72,54 @@ export function coverInitial(title: string): string {
   return (title || '?').trim().charAt(0).toUpperCase() || '?'
 }
 
+/**
+ * A run of consecutive rows that share a heading.
+ *
+ * Named `{ title, data }` to match React Native's SectionList directly, so the
+ * mobile side renders the result with no adaptation. A web list reads the same
+ * two fields; only its JSX differs.
+ */
+export interface DayGroup<T> {
+  title: string
+  data: T[]
+}
+
+/**
+ * Group already-sorted rows into consecutive runs by day label.
+ *
+ * Shared because all three clients group listening history the same way and were
+ * otherwise carrying the same eight-line loop. Generic over the row type and
+ * takes an accessor, because the clients disagree on field names (the hosted app
+ * calls it `timeListeningSec`/`itemId`, self-hosted `timeListening`/
+ * `libraryItemId`) - the grouping does not care.
+ *
+ * Rows are NOT sorted here: this walks the list in order and starts a new group
+ * whenever the label changes, so a caller passing unsorted rows gets repeated
+ * headings rather than a silent re-order. Callers pass newest-first.
+ *
+ * `label` defaults to fmtSessDate's relative day (Today/Yesterday/weekday/date);
+ * pass your own to group by something else, e.g. month.
+ */
+export function groupByDay<T>(
+  rows: T[],
+  startedAtOf: (row: T) => number,
+  label: (ms: number) => string = (ms) => fmtSessDate(ms).day,
+): DayGroup<T>[] {
+  const out: DayGroup<T>[] = []
+  for (const row of rows) {
+    const title = label(startedAtOf(row))
+    const last = out[out.length - 1]
+    if (last && last.title === title) last.data.push(row)
+    else out.push({ title, data: [row] })
+  }
+  return out
+}
+
+/** Month + year heading for the finished-books view, e.g. "August 2026". */
+export function fmtMonthLabel(ms: number): string {
+  return new Date(ms).toLocaleDateString([], { month: 'long', year: 'numeric' })
+}
+
 // Clock-style timestamp for chapter offsets. 3725 -> "1:02:05", 125 -> "2:05"
 export function formatTimestamp(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
