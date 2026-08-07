@@ -12,7 +12,7 @@
 // shelves stay the floor, so a non-empty library always has content on first run
 // with zero setup. QuestGiver / AI only refine what's already there.
 
-import type { ABSLibraryItem } from '../types/abs'
+import type { ABSLibraryItem, ABSMediaProgress } from '../types/abs'
 import type { DiscoverShelf } from './discover'
 
 // Feedback is keyed by ABS library item id (see the web DiscoverPage, which reads
@@ -31,6 +31,12 @@ export interface RankInputs {
   questGiverPicks?: string[]
   // Per-item feedback map, keyed by item id.
   feedback?: DiscoverFeedbackMap
+  // Listening progress, keyed by item id. A QuestGiver run is a point-in-time
+  // snapshot: once the listener finishes (or starts) a pick, the saved run still
+  // names it, so without this the shelf replays books they already read. Every
+  // other shelf draws from the unstarted pool - this holds the QG shelf to the
+  // same rule. Omit only when progress is genuinely unavailable.
+  progressById?: Map<string, ABSMediaProgress>
 }
 
 // True when feedback says the user does not want to see this item anywhere.
@@ -71,18 +77,22 @@ export function rankDiscoverShelves(
 ): DiscoverShelf[] {
   const feedback = inputs.feedback ?? {}
   const qgPicks = inputs.questGiverPicks ?? []
+  const progressById = inputs.progressById
 
   const ranked: DiscoverShelf[] = []
 
   // 1. QuestGiver-refined shelf leads when present. Resolve pick ids to owned
-  //    items in the user's chosen order, dropping hidden ones. Only surface it
-  //    if it clears the min-shelf bar - a single stale pick is not a shelf.
+  //    items in the user's chosen order, dropping hidden ones and any the
+  //    listener has since finished or started. Only surface it if it clears the
+  //    min-shelf bar - a single stale pick is not a shelf.
   const qgItems: ABSLibraryItem[] = []
   const qgSeen = new Set<string>()
   for (const id of qgPicks) {
     if (qgSeen.has(id)) continue
     const it = byId.get(id)
     if (!it || isHidden(feedback[id])) continue
+    const p = progressById?.get(id)
+    if (p?.isFinished || (p?.progress ?? 0) > 0) continue
     qgSeen.add(id)
     qgItems.push(it)
   }
