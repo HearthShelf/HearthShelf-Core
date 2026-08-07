@@ -472,10 +472,19 @@ export interface ABSCollectionsResponse {
 
 // --- Playlists (/api/libraries/:id/playlists) ---
 
+// A playlist entry is EITHER a whole book or a single podcast episode, and the
+// two shapes differ - see Playlist.toOldJSONExpanded() in the ABS server:
+//   book:    { libraryItemId, libraryItem }              (libraryItem expanded)
+//   episode: { libraryItemId, libraryItem, episodeId, episode }  (minified)
+// `episodeId`/`episode` are ABSENT on book entries rather than null, so presence
+// of `episode` is the discriminator. Episode rows must read their title and
+// duration from `episode`, not from `libraryItem.media.metadata` - that is the
+// podcast, not the episode.
 export interface ABSPlaylistItem {
   libraryItemId: string
-  episodeId: string | null
   libraryItem: ABSLibraryItem
+  episodeId?: string
+  episode?: ABSPodcastEpisode
 }
 
 export interface ABSPlaylist {
