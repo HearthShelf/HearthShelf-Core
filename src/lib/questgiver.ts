@@ -361,3 +361,128 @@ export function qgCraftPrompt(
     .filter(Boolean)
     .join('\n')
 }
+
+// The stable identity of a pick across runs: title|author, lowercased. Feedback
+// is keyed on this, and it is how a repeat recommendation is detected, so every
+// client must derive it the same way.
+export function qgPickKey(title: string, author: string): string {
+  return (title + '|' + author).toLowerCase()
+}
+
+export interface QgResolveOptions {
+  /** Engine output for this run. */
+  result: Omit<QgResult, 'engine'>
+  /** The listener's library, used to tell an owned pick from an external one. */
+  books: QgBook[]
+  /** External candidates by id, from the catalog search (empty when not looking beyond). */
+  externalById: Map<string, QgCandidate>
+  /** Earlier runs - drives priorCount ("recommended Nx before"). */
+  priorPicks: QgRenderedPick[]
+  /**
+   * Whether a request backend is connected. Controls only what a listener can DO
+   * with a pick they do not own: 'request' when connected, otherwise 'new' (go
+   * and buy it). It never gates whether external picks appear.
+   */
+  canRequest: boolean
+  /** How many picks to keep. Defaults to the engine's own answer count. */
+  count?: number
+}
+
+/**
+ * Resolve raw engine picks into renderable ones: dedupe, match each against the
+ * library, fall back to the external pool, then append any AI-invented newPicks.
+ *
+ * Shared because all three clients must agree on what a pick becomes - which one
+ * counts as owned, which action it offers, and how repeats are counted. This is
+ * presentation-independent; each client renders the result its own way.
+ */
+export function qgResolvePicks(opts: QgResolveOptions): QgRenderedPick[] {
+  const { result, books, externalById, priorPicks, canRequest } = opts
+
+  const byId = new Map(books.map((b) => [b.id, b]))
+  const priorKeys = new Map<string, number>()
+  priorPicks.forEach((p) => priorKeys.set(p.key, (priorKeys.get(p.key) ?? 0) + 1))
+
+  const seen = new Set<string>()
+  const picks: QgRenderedPick[] = []
+
+  for (const p of result.picks) {
+    if (seen.has(p.id)) continue
+    seen.add(p.id)
+    const b = byId.get(p.id)
+    if (b) {
+      const key = qgPickKey(b.title, b.author)
+      picks.push({
+        key,
+        kind: 'library',
+        itemId: b.id,
+        title: b.title,
+        author: b.author,
+        genre: b.genre,
+        hours: b.hours,
+        reason: p.reason,
+        priorCount: priorKeys.get(key) ?? 0,
+      })
+      continue
+    }
+    // Not in the library - an external catalog hit. itemId carries the asin so a
+    // connected request backend can queue it.
+    const ext = externalById.get(p.id)
+    if (!ext) continue
+    const key = qgPickKey(ext.title, ext.author)
+    picks.push({
+      key,
+      kind: canRequest ? 'request' : 'new',
+      itemId: ext.id,
+      title: ext.title,
+      author: ext.author,
+      genre: ext.genre,
+      hours: ext.hours,
+      reason: p.reason,
+      priorCount: priorKeys.get(key) ?? 0,
+    })
+  }
+
+  for (const np of result.newPicks) {
+    const key = qgPickKey(np.title, np.author)
+    if (seen.has(key)) continue
+    seen.add(key)
+    picks.push({
+      key,
+      kind: canRequest ? 'request' : 'new',
+      title: np.title,
+      author: np.author,
+      genre: np.genre,
+      hours: np.hours,
+      reason: np.reason,
+      priorCount: priorKeys.get(key) ?? 0,
+    })
+  }
+
+  return picks.slice(0, opts.count ?? 4)
+}
+
+/**
+ * The human-readable label for a completed run, e.g. `Switch it up · Mystery`.
+ * Prefers the listener's own words (their mood note) over the top-weighted
+ * genre, falling back to the direction alone.
+ */
+export function qgRunLabel(
+  direction: QgAnswers['direction'],
+  mood: string,
+  weights: Record<string, number>,
+): string {
+  const topGenre = Object.entries(weights)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])[0]
+  const dirLabel =
+    direction === 'more'
+      ? 'More like this'
+      : direction === 'switch'
+        ? 'Switch it up'
+        : 'Something new'
+  const trimmed = mood.trim()
+  return (
+    dirLabel + (trimmed ? ' · "' + trimmed.slice(0, 28) + '"' : topGenre ? ' · ' + topGenre[0] : '')
+  )
+}
