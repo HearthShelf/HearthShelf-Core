@@ -600,6 +600,16 @@ export interface ABSMeResponse {
   id: string
   mediaProgress: ABSMediaProgress[]
   bookmarks?: ABSBookmark[]
+  /** 'root' and 'admin' bypass the per-permission flags below. */
+  type?: string
+  /** Per-user action permissions. Absent on older servers, so treat a missing
+   *  object as "not granted" rather than assuming allowed. */
+  permissions?: {
+    update?: boolean
+    delete?: boolean
+    download?: boolean
+    upload?: boolean
+  }
 }
 
 export interface ABSBookmark {
