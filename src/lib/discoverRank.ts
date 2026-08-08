@@ -5,8 +5,10 @@
 //
 //   1. QuestGiver-refined picks - item ids from the user's latest accepted QG
 //      run. These rank first: the user explicitly tuned them.
-//   2. Discover feedback - like / rating >= 4 boosts an item; dislike /
-//      not_interested removes it from every shelf.
+//   2. Discover feedback and the user's own star ratings - a like, or a rating
+//      of 4-5, boosts an item; dislike / not_interested removes it from every
+//      shelf. Ratings arrive separately from feedback because they are a
+//      site-wide property of a book, not a Discover-only signal.
 //
 // This layer only ever reorders, prepends, or removes. It never GATES: the base
 // shelves stay the floor, so a non-empty library always has content on first run
@@ -21,7 +23,6 @@ import type { DiscoverShelf } from './discover'
 export type DiscoverVote = 'like' | 'dislike' | 'not_interested'
 export interface DiscoverFeedbackEntry {
   vote?: DiscoverVote
-  rating?: number
 }
 export type DiscoverFeedbackMap = Record<string, DiscoverFeedbackEntry>
 
@@ -31,6 +32,9 @@ export interface RankInputs {
   questGiverPicks?: string[]
   // Per-item feedback map, keyed by item id.
   feedback?: DiscoverFeedbackMap
+  // The user's own 1-5 star ratings, keyed by item id. Sourced from /hs/ratings,
+  // which is live even on an install with Discover switched off.
+  ratings?: Record<string, number>
   // Listening progress, keyed by item id. A QuestGiver run is a point-in-time
   // snapshot: once the listener finishes (or starts) a pick, the saved run still
   // names it, so without this the shelf replays books they already read. Every
@@ -46,21 +50,24 @@ function isHidden(fb: DiscoverFeedbackEntry | undefined): boolean {
 
 // A per-item boost from positive feedback. A liked item, or one rated 4-5, floats
 // up within its shelf; neutral / unrated items are unaffected.
-function feedbackBoost(fb: DiscoverFeedbackEntry | undefined): number {
-  if (!fb) return 0
+function feedbackBoost(fb: DiscoverFeedbackEntry | undefined, rating?: number): number {
   let b = 0
-  if (fb.vote === 'like') b += 100
-  if (typeof fb.rating === 'number' && fb.rating >= 4) b += (fb.rating - 3) * 10
+  if (fb?.vote === 'like') b += 100
+  if (typeof rating === 'number' && rating >= 4) b += (rating - 3) * 10
   return b
 }
 
 // Reorder one shelf's items: drop hidden ones, then stable-sort by feedback boost
 // (positive feedback first) while preserving the base builder's order within a
 // boost tier. QuestGiver picks are handled at the shelf level, not here.
-function rankShelfItems(items: ABSLibraryItem[], feedback: DiscoverFeedbackMap): ABSLibraryItem[] {
+function rankShelfItems(
+  items: ABSLibraryItem[],
+  feedback: DiscoverFeedbackMap,
+  ratings: Record<string, number>,
+): ABSLibraryItem[] {
   return items
     .filter((it) => !isHidden(feedback[it.id]))
-    .map((it, i) => ({ it, i, b: feedbackBoost(feedback[it.id]) }))
+    .map((it, i) => ({ it, i, b: feedbackBoost(feedback[it.id], ratings[it.id]) }))
     .sort((a, b) => b.b - a.b || a.i - b.i)
     .map((x) => x.it)
 }
@@ -76,6 +83,7 @@ export function rankDiscoverShelves(
   minShelf = 3,
 ): DiscoverShelf[] {
   const feedback = inputs.feedback ?? {}
+  const ratings = inputs.ratings ?? {}
   const qgPicks = inputs.questGiverPicks ?? []
   const progressById = inputs.progressById
 
@@ -108,7 +116,7 @@ export function rankDiscoverShelves(
   // 2. The deterministic shelves, feedback-applied. De-dupe the QuestGiver items
   //    out of them so a pick does not appear twice on the page.
   for (const shelf of shelves) {
-    const items = rankShelfItems(shelf.items, feedback).filter((it) => !qgSeen.has(it.id))
+    const items = rankShelfItems(shelf.items, feedback, ratings).filter((it) => !qgSeen.has(it.id))
     if (items.length < minShelf) continue
     ranked.push({ ...shelf, items })
   }

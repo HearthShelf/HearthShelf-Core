@@ -173,16 +173,41 @@ export interface HSQuestGiverRunsResponse {
   runs: HSQuestGiverRun[]
 }
 
+// --- Ratings (/hs/ratings) ------------------------------------------------
+// The user's own 1-5 star rating for a book. HearthShelf-side only: ABS has no
+// user-rating concept at all (ABSBookMetadataDetail.rating is a scraped
+// COMMUNITY rating we only read, and ABSItemMetadataPatch has no rating field).
+//
+// Deliberately its own domain rather than part of Discover feedback: ratings are
+// a site-wide property of a book, and /hs/discover/* is gated behind the Discover
+// feature flag.
+
+/** The user's ratings, keyed by rating key (see ratingKeyForItem). Values 1-5. */
+export type HSRatingMap = Record<string, number>
+
+/** GET/PUT /hs/ratings response. */
+export interface HSRatingsResponse {
+  ratings: HSRatingMap
+}
+
+/** PUT /hs/ratings body. `rating: null` clears the rating. */
+export interface HSRatingRequest {
+  itemKey: string
+  rating: number | null
+}
+
+export const HS_RATING_MIN = 1
+export const HS_RATING_MAX = 5
+
 // --- Discover (/hs/discover/*) --------------------------------------------
 
 export type HSDiscoverVote = 'like' | 'dislike' | 'not_interested'
 
 export interface HSDiscoverFeedback {
   vote?: HSDiscoverVote
-  rating?: number
 }
 
-/** Keyed by item/candidate id; entries with no vote and no rating are absent. */
+/** Keyed by item/candidate id; entries with no vote are absent. */
 export type HSDiscoverFeedbackMap = Record<string, HSDiscoverFeedback>
 
 /** GET/POST /hs/discover/feedback response. */
@@ -194,7 +219,6 @@ export interface HSDiscoverFeedbackResponse {
 export interface HSDiscoverFeedbackRequest {
   itemKey: string
   vote?: HSDiscoverVote | null
-  rating?: number | null
 }
 
 export interface HSDiscoverPopularItem {
@@ -245,7 +269,6 @@ export interface HSFinishedBook {
   author: string | null
   isbn: string | null
   dateFinished: string | null
-  rating: number | null
   hardcoverBookId: string | null
   hardcoverSyncedAt: number | null
   /** ms epoch when this finish was written back into ABS's mediaProgress (so it
@@ -335,6 +358,8 @@ export interface HSFinishedBookImportRow {
   author?: string | null
   isbn?: string | null
   dateFinished?: string | null
+  /** The imported star rating, if the source had one. Seeds book_ratings, and
+   *  never overwrites a rating the user has since set in the app. */
   rating?: number | null
 }
 
