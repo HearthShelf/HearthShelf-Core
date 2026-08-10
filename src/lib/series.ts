@@ -48,14 +48,76 @@ export interface OwnedSeriesBook {
   sequence?: string | number | null
 }
 
+// One owned book, tracked so a roster entry can CONSUME it - that's what stops a
+// single owned book from marking several roster entries owned.
+interface Claimable {
+  used: boolean
+  title: string
+}
+
+function push(map: Map<string, Claimable[]>, key: string, entry: Claimable): void {
+  if (!key) return
+  const list = map.get(key)
+  if (list) list.push(entry)
+  else map.set(key, [entry])
+}
+
+// Consume the first unused owned book filed under `key` (that `accept` allows).
+function claim(
+  map: Map<string, Claimable[]>,
+  key: string,
+  accept?: (e: Claimable) => boolean,
+): boolean {
+  if (!key) return false
+  const entry = map.get(key)?.find((e) => !e.used && (!accept || accept(e)))
+  if (!entry) return false
+  entry.used = true
+  return true
+}
+
+// Server `owned` flags are a SNAPSHOT: they come from a roster the backend
+// precomputes on a schedule, so a book added to the library since the last sweep
+// is still flagged unowned - and the series page then shows it twice, once in
+// reading order and once under "not in your library". The caller always knows
+// better here, because `ownedBooks` is what ABS just returned for this series.
+//
+// So the flags still decide, with one correction: an owned book the flags don't
+// account for clears a roster entry that carries its title. Owned books are
+// consumed by the already-owned entries FIRST, so a book the server matched
+// elsewhere in the roster can't also clear a genuinely missing entry (a second
+// edition, or an omnibus whose normalized title collides with book 1's). The
+// match is normalized title only - never sequence, the weak signal the server
+// flags exist to overrule.
+function unflagOwned(
+  titled: readonly HSAudibleSeriesBook[],
+  ownedBooks: readonly OwnedSeriesBook[],
+): HSAudibleSeriesBook[] {
+  const byTitle = new Map<string, Claimable[]>()
+  for (const b of ownedBooks) {
+    const title = normalizeTitle(b.title)
+    push(byTitle, title, { used: false, title })
+  }
+  for (const b of titled) {
+    if (b.owned !== false) claim(byTitle, normalizeTitle(b.title))
+  }
+  const missing: HSAudibleSeriesBook[] = []
+  for (const b of titled) {
+    if (b.owned !== false) continue
+    if (!claim(byTitle, normalizeTitle(b.title))) missing.push(b)
+  }
+  return missing
+}
+
 // Audible entries for a series that aren't among the owned books - the "unowned"
 // books. When the server has stamped each roster book with an `owned` flag (the
-// ASIN-accurate, library-wide precompute), that is authoritative and used
-// directly. Otherwise (older servers) it matches the roster against `ownedBooks`
-// itself, mirroring the server's ranking: normalized title first (the stronger
-// signal client-side, where owned books carry no ASIN), then series sequence as
-// a last resort. Each owned book is CONSUMED by the first roster entry it
-// matches, so one owned book can never mark several roster entries owned.
+// ASIN-accurate, library-wide precompute), that is authoritative, reconciled
+// against `ownedBooks` only to clear books added since the flags were computed
+// (see unflagOwned). Otherwise (older servers) it matches the roster against
+// `ownedBooks` itself, mirroring the server's ranking: normalized title first
+// (the stronger signal client-side, where owned books carry no ASIN), then
+// series sequence as a last resort. Each owned book is CONSUMED by the first
+// roster entry it matches, so one owned book can never mark several roster
+// entries owned.
 //
 // Sequence is deliberately last, limited, and CONTRADICTABLE. As an unranked,
 // unlimited match it hid genuinely missing books: one owned book that ABS
@@ -71,45 +133,24 @@ export function missingSeriesBooks(
   const bySequence = (a: HSAudibleSeriesBook, b: HSAudibleSeriesBook) =>
     (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0)
 
+  const titled = audibleBooks.filter((b) => b.title)
+
   // Server-provided owned flags are authoritative when present on any book.
   if (audibleBooks.some((b) => typeof b.owned === 'boolean')) {
-    return audibleBooks.filter((b) => b.title && b.owned === false).sort(bySequence)
+    return unflagOwned(titled, ownedBooks).sort(bySequence)
   }
 
-  interface Claimable {
-    used: boolean
-    title: string
-  }
   const byTitle = new Map<string, Claimable[]>()
   const bySeq = new Map<string, Claimable[]>()
-  const push = (map: Map<string, Claimable[]>, key: string, entry: Claimable) => {
-    if (!key) return
-    const list = map.get(key)
-    if (list) list.push(entry)
-    else map.set(key, [entry])
-  }
   for (const b of ownedBooks) {
     const entry: Claimable = { used: false, title: normalizeTitle(b.title) }
     push(byTitle, entry.title, entry)
     push(bySeq, seqKey(b.sequence), entry)
   }
 
-  const claim = (
-    map: Map<string, Claimable[]>,
-    key: string,
-    accept?: (e: Claimable) => boolean,
-  ): boolean => {
-    if (!key) return false
-    const entry = map.get(key)?.find((e) => !e.used && (!accept || accept(e)))
-    if (!entry) return false
-    entry.used = true
-    return true
-  }
-
   // Strongest signal first across the whole roster, so a title match always wins
   // an owned book ahead of a mere same-slot sequence match.
   const owned = new Set<HSAudibleSeriesBook>()
-  const titled = audibleBooks.filter((b) => b.title)
   for (const b of titled) {
     if (claim(byTitle, normalizeTitle(b.title))) owned.add(b)
   }
