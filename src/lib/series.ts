@@ -23,6 +23,34 @@ export function normalizeTitle(title: string | null | undefined): string {
     .trim()
 }
 
+// Audible's placeholder date for an announced-but-unscheduled product. Real
+// releases never carry it; the placeholder children of a series do.
+const PLACEHOLDER_RELEASE_YEAR = '2200'
+
+// Audible lists some series books TWICE: a real product, plus a "phantom"
+// placeholder created when the book was first announced. Both are children of
+// the series and share a sequence, so a series shows the same book twice - once
+// properly, once as a coverless row with a mangled author ("Zogarth .").
+//
+// The phantom is identifiable on its own: it carries the sentinel release date
+// 2200-01-01 and has neither a narrator nor a runtime, because none of that was
+// known at announcement. A real upcoming book (even months out) has all three.
+// Dropping it is safe - the real product for that sequence is always present,
+// so nothing disappears from the roster.
+export function isPhantomRosterBook(book: HSAudibleSeriesBook): boolean {
+  const rel = book.releaseDate ?? book.publicationDatetime ?? ''
+  if (!rel.startsWith(PLACEHOLDER_RELEASE_YEAR)) return false
+  return !book.narrator && !book.durationMinutes
+}
+
+// The roster with phantom placeholders removed. Every consumer of a series
+// roster should read it through this.
+export function realRosterBooks(
+  books: readonly HSAudibleSeriesBook[],
+): HSAudibleSeriesBook[] {
+  return books.filter((b) => !isPhantomRosterBook(b))
+}
+
 // A number key for a series sequence ("4", "2.5", "#4 ") -> "4"/"2.5", or '' when
 // there's no parseable number. Used as the primary match signal: within one
 // resolved series, same sequence == same book regardless of title/author text.
@@ -127,9 +155,14 @@ function unflagOwned(
 // both sides have a real title and they differ, that's contradicted metadata,
 // not a match. Ordered by numeric sequence.
 export function missingSeriesBooks(
-  audibleBooks: readonly HSAudibleSeriesBook[],
+  audibleBooksRaw: readonly HSAudibleSeriesBook[],
   ownedBooks: readonly OwnedSeriesBook[],
 ): HSAudibleSeriesBook[] {
+  // Drop Audible's phantom placeholders first: they duplicate a real product's
+  // sequence, and being coverless and narrator-less they can never match an
+  // owned book, so they'd always surface as spurious "missing" rows.
+  const audibleBooks = realRosterBooks(audibleBooksRaw)
+
   const bySequence = (a: HSAudibleSeriesBook, b: HSAudibleSeriesBook) =>
     (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0)
 
