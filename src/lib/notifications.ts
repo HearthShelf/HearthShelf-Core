@@ -101,20 +101,124 @@ export function isInCountdownWindow(
 ): boolean {
   if (sub.kind !== 'book') return false
   if (sub.available) return false
+  // A book whose date has PASSED but that never landed in the library is not a
+  // countdown - daysUntilRelease floors at 0, so without this an old follow sat
+  // on the banner reading "Out today" forever.
+  const ms = releaseMs(sub)
+  if (ms === null || ms < now - 86_400_000) return false
   const d = daysUntilRelease(sub, now)
   if (d === null) return false
   return d >= 0 && d <= clampCountdownWindow(windowDays)
 }
 
-/** Book subscriptions to surface on the banner, soonest release first. */
+/** Book subscriptions to surface on the banner, soonest release first.
+ *
+ *  `ignoredAsins` drops books the user has ignored: ignoring a book is a
+ *  statement that they don't want to hear about it, so it must not keep
+ *  appearing on Home just because a follow still exists for it. */
 export function bannerSubscriptions(
   subs: HSSubscription[],
   prefs: Pick<HSNotificationPrefs, 'countdownWindowDays'>,
   now: number,
+  ignoredAsins?: readonly string[],
 ): HSSubscription[] {
+  const ignored = ignoredAsins?.length
+    ? new Set(ignoredAsins.map((a) => String(a).toLowerCase()))
+    : null
   return subs
+    .filter((s) => !(ignored && s.asin && ignored.has(String(s.asin).toLowerCase())))
     .filter((s) => isInCountdownWindow(s, prefs.countdownWindowDays, now))
     .sort((a, b) => (releaseMs(a) ?? Infinity) - (releaseMs(b) ?? Infinity))
+}
+
+/** One thing with a release ahead of it, flattened from either source: a book
+ *  the user followed directly, or the next book of a series they follow. */
+export interface PendingRelease {
+  /** Stable key for lists: the book's ASIN when known, else the sub's id. */
+  key: string
+  title: string
+  author?: string
+  coverArtUrl?: string
+  seriesTitle?: string
+  sequence?: string | null
+  asin?: string
+  releaseDate?: string
+  publicationDatetime?: string
+  /** The subscription this came from, so unfollowing still targets the right
+   *  row (a series-derived release unfollows the SERIES, not one book). */
+  sub: HSSubscription
+}
+
+/** Everything the user is waiting on, from BOTH sources, soonest first.
+ *
+ *  A series subscription carries no date of its own, so on its own it can never
+ *  satisfy a countdown - which is why a user who follows only series saw an
+ *  empty Home banner and an empty Upcoming page. Pass `nextBySeriesAsin` (the
+ *  resolved next book per followed series, from nextSeriesBook) and those books
+ *  join the same list as directly-followed books.
+ *
+ *  `ignoredAsins` drops books the user has ignored, from either source. */
+export function pendingReleases(
+  subs: readonly HSSubscription[],
+  nextBySeriesAsin: ReadonlyMap<string, HSAudibleSeriesBook | null>,
+  ignoredAsins?: readonly string[],
+): PendingRelease[] {
+  const ignored = ignoredAsins?.length
+    ? new Set(ignoredAsins.map((a) => String(a).toLowerCase()))
+    : null
+  const isIgnored = (asin?: string) =>
+    Boolean(ignored && asin && ignored.has(String(asin).toLowerCase()))
+
+  const out: PendingRelease[] = []
+  for (const s of subs) {
+    if (s.kind === 'book') {
+      if (s.available || isIgnored(s.asin)) continue
+      out.push({
+        key: s.asin ?? s.id,
+        title: s.title,
+        author: s.author,
+        coverArtUrl: s.coverArtUrl,
+        seriesTitle: s.seriesTitle,
+        sequence: s.sequence,
+        asin: s.asin,
+        releaseDate: s.releaseDate,
+        publicationDatetime: s.publicationDatetime,
+        sub: s,
+      })
+      continue
+    }
+    const next = s.seriesAsin ? nextBySeriesAsin.get(s.seriesAsin) : null
+    if (!next || next.owned || isIgnored(next.asin)) continue
+    out.push({
+      key: `${s.id}:${next.asin}`,
+      title: next.title,
+      author: next.author || s.author,
+      coverArtUrl: next.coverArtUrl ?? s.coverArtUrl,
+      seriesTitle: s.seriesTitle ?? s.title,
+      sequence: next.sequence,
+      asin: next.asin,
+      releaseDate: next.releaseDate,
+      publicationDatetime: next.publicationDatetime,
+      sub: s,
+    })
+  }
+  return out.sort((a, b) => (releaseMs(a) ?? Infinity) - (releaseMs(b) ?? Infinity))
+}
+
+/** The pending releases close enough to show on the Home countdown banner:
+ *  dated, still ahead, and inside the reader's window. */
+export function bannerReleases(
+  releases: readonly PendingRelease[],
+  prefs: Pick<HSNotificationPrefs, 'countdownWindowDays'>,
+  now: number,
+): PendingRelease[] {
+  const window = clampCountdownWindow(prefs.countdownWindowDays)
+  return releases.filter((r) => {
+    const ms = releaseMs(r)
+    if (ms === null || ms < now - 86_400_000) return false
+    const d = daysUntilRelease(r, now)
+    return d !== null && d >= 0 && d <= window
+  })
 }
 
 /** Upcoming (unreleased) books in a resolved series roster, soonest first. Used
