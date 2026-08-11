@@ -469,6 +469,11 @@ export interface HSAudibleSearchResult {
   rating?: number
   series?: string
   seriesAsin?: string
+  /** True when the release date is in the future (not yet out on Audible).
+   *  Computed server-side in mapProduct, so it rides on EVERY Audible result -
+   *  search hits, single products, and series children alike. Absent on older
+   *  servers, where clients fall back to comparing releaseDate to now. */
+  upcoming?: boolean
 }
 
 /** GET /hs/audible/search response. */
@@ -487,10 +492,6 @@ export interface HSAudibleSearchResponse {
 export interface HSAudibleSeriesBook extends HSAudibleSearchResult {
   sequence: string | null
   owned?: boolean
-  /** True when the book has a future release date (not yet out on Audible).
-   *  Computed server-side against the roster's resolve time; absent on older
-   *  servers, where clients fall back to comparing releaseDate to now. */
-  upcoming?: boolean
 }
 
 /** GET /hs/audible/series response. Empty (`seriesAsin: null, books: []`) when unresolved. */
