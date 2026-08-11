@@ -16,6 +16,13 @@ export interface QueueEntry {
 export interface Dismissals {
   seriesIds: string[]
   itemIds: string[]
+  /** Audible ASINs of series-roster entries the user has ignored - a book that
+   *  is in the series on Audible but that they never expect to own, e.g. an
+   *  ebook-only side story or a print edition. Keyed by ASIN because these
+   *  books have no ABS item id (they are not in the library, and often never
+   *  will be). Ignored entries drop out of the missing list, the completion
+   *  denominator, and Upcoming. */
+  rosterAsins?: string[]
 }
 
 // How the up-next queue behaves when a book ends:

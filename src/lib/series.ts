@@ -27,6 +27,17 @@ export function normalizeTitle(title: string | null | undefined): string {
 // releases never carry it; the placeholder children of a series do.
 const PLACEHOLDER_RELEASE_YEAR = '2200'
 
+/** True when this roster entry is on the user's ignore list. ASIN casing varies
+ *  across Audible responses, so match case-insensitively. */
+export function isIgnoredRosterBook(
+  book: Pick<HSAudibleSeriesBook, 'asin'>,
+  ignoredAsins: readonly string[] | undefined,
+): boolean {
+  if (!ignoredAsins?.length || !book.asin) return false
+  const want = String(book.asin).toLowerCase()
+  return ignoredAsins.some((a) => String(a).toLowerCase() === want)
+}
+
 // An "announcement placeholder": Audible's stub for a book that exists but has
 // no schedule yet. It carries the sentinel release date 2200-01-01 and has
 // neither a narrator nor a runtime, because none of that was known when the
@@ -58,12 +69,26 @@ export function isPhantomRosterBook(
   return books.some((b) => b !== book && seqKey(b.sequence) === slot && !isPlaceholderBook(b))
 }
 
-// The roster with superseded placeholders removed. Every consumer of a series
+// The roster as the user should actually see it: superseded placeholders gone,
+// and anything they've explicitly ignored gone too. Every consumer of a series
 // roster should read it through this.
+//
+// `ignoredAsins` are entries the user has said they'll never own - an ebook-only
+// side story, a print edition, a box set. Audible lists them as series children,
+// but counting them makes a series permanently incompletable. Matching is
+// case-insensitive because ASIN casing varies across Audible responses.
 export function realRosterBooks(
   books: readonly HSAudibleSeriesBook[],
+  ignoredAsins?: readonly string[],
 ): HSAudibleSeriesBook[] {
-  return books.filter((b) => !isPhantomRosterBook(b, books))
+  const ignored = ignoredAsins?.length
+    ? new Set(ignoredAsins.map((a) => String(a).toLowerCase()))
+    : null
+  return books.filter(
+    (b) =>
+      !isPhantomRosterBook(b, books) &&
+      !(ignored && b.asin && ignored.has(String(b.asin).toLowerCase())),
+  )
 }
 
 // A number key for a series sequence ("4", "2.5", "#4 ") -> "4"/"2.5", or '' when
@@ -172,11 +197,13 @@ function unflagOwned(
 export function missingSeriesBooks(
   audibleBooksRaw: readonly HSAudibleSeriesBook[],
   ownedBooks: readonly OwnedSeriesBook[],
+  ignoredAsins?: readonly string[],
 ): HSAudibleSeriesBook[] {
   // Drop Audible's phantom placeholders first: they duplicate a real product's
   // sequence, and being coverless and narrator-less they can never match an
-  // owned book, so they'd always surface as spurious "missing" rows.
-  const audibleBooks = realRosterBooks(audibleBooksRaw)
+  // owned book, so they'd always surface as spurious "missing" rows. Books the
+  // user has ignored go with them - they are not a gap to be filled.
+  const audibleBooks = realRosterBooks(audibleBooksRaw, ignoredAsins)
 
   const bySequence = (a: HSAudibleSeriesBook, b: HSAudibleSeriesBook) =>
     (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0)

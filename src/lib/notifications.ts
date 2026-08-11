@@ -144,9 +144,18 @@ export function upcomingSeriesBooks(
 export function nextSeriesBook(
   books: HSAudibleSeriesBook[],
   now: number,
+  ignoredAsins?: readonly string[],
 ): HSAudibleSeriesBook | null {
+  const ignored = ignoredAsins?.length
+    ? new Set(ignoredAsins.map((a) => String(a).toLowerCase()))
+    : null
   const unowned = books
-    .filter((b) => b.title && !b.owned)
+    .filter(
+      (b) =>
+        b.title &&
+        !b.owned &&
+        !(ignored && b.asin && ignored.has(String(b.asin).toLowerCase())),
+    )
     .sort((a, b) => (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0))
   if (unowned.length === 0) return null
   // Prefer the first gap in what's already out; fall back to the soonest
