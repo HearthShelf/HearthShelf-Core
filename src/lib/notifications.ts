@@ -106,3 +106,23 @@ export function upcomingSeriesBooks(
     .filter((b) => (b.upcoming ?? isUpcoming(b, now)) && !b.owned)
     .sort((a, b) => (releaseMs(a) ?? Infinity) - (releaseMs(b) ?? Infinity))
 }
+
+/** The single next book to expect in a followed series: the soonest unreleased
+ *  one, or - when nothing is announced - the earliest released book the library
+ *  doesn't own yet, which is what the reader is actually waiting on. null when
+ *  the series is fully owned and nothing is upcoming.
+ *
+ *  A series subscription carries no release date of its own (it stands for every
+ *  future book), so a "following" list needs this to say anything concrete about
+ *  what is next. */
+export function nextSeriesBook(
+  books: HSAudibleSeriesBook[],
+  now: number,
+): HSAudibleSeriesBook | null {
+  const upcoming = upcomingSeriesBooks(books, now)
+  if (upcoming.length > 0) return upcoming[0]
+  const unowned = books
+    .filter((b) => b.title && !b.owned)
+    .sort((a, b) => (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0))
+  return unowned[0] ?? null
+}
