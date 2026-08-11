@@ -107,22 +107,29 @@ export function upcomingSeriesBooks(
     .sort((a, b) => (releaseMs(a) ?? Infinity) - (releaseMs(b) ?? Infinity))
 }
 
-/** The single next book to expect in a followed series: the soonest unreleased
- *  one, or - when nothing is announced - the earliest released book the library
- *  doesn't own yet, which is what the reader is actually waiting on. null when
- *  the series is fully owned and nothing is upcoming.
+/** The single next book to expect in a followed series - what the reader picks
+ *  up next, in series order. null when the series is fully owned and nothing is
+ *  announced.
  *
  *  A series subscription carries no release date of its own (it stands for every
  *  future book), so a "following" list needs this to say anything concrete about
- *  what is next. */
+ *  what is next.
+ *
+ *  Ordering is by SEQUENCE, not by release date. Someone who owns books 1-5 of a
+ *  fifteen-book series is waiting on book 6 - which is out now - not on book 15
+ *  just because 15 is the next thing Audible will publish. Only once every
+ *  released book is owned does the soonest unreleased one become "next", and
+ *  that case falls out of the same sequence ordering. */
 export function nextSeriesBook(
   books: HSAudibleSeriesBook[],
   now: number,
 ): HSAudibleSeriesBook | null {
-  const upcoming = upcomingSeriesBooks(books, now)
-  if (upcoming.length > 0) return upcoming[0]
   const unowned = books
     .filter((b) => b.title && !b.owned)
     .sort((a, b) => (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0))
-  return unowned[0] ?? null
+  if (unowned.length === 0) return null
+  // Prefer the first gap in what's already out; fall back to the soonest
+  // announced book when the reader is fully caught up.
+  const released = unowned.find((b) => !(b.upcoming ?? isUpcoming(b, now)))
+  return released ?? upcomingSeriesBooks(unowned, now)[0] ?? unowned[0]
 }
