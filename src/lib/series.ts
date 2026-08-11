@@ -27,28 +27,43 @@ export function normalizeTitle(title: string | null | undefined): string {
 // releases never carry it; the placeholder children of a series do.
 const PLACEHOLDER_RELEASE_YEAR = '2200'
 
-// Audible lists some series books TWICE: a real product, plus a "phantom"
-// placeholder created when the book was first announced. Both are children of
-// the series and share a sequence, so a series shows the same book twice - once
-// properly, once as a coverless row with a mangled author ("Zogarth .").
-//
-// The phantom is identifiable on its own: it carries the sentinel release date
-// 2200-01-01 and has neither a narrator nor a runtime, because none of that was
-// known at announcement. A real upcoming book (even months out) has all three.
-// Dropping it is safe - the real product for that sequence is always present,
-// so nothing disappears from the roster.
-export function isPhantomRosterBook(book: HSAudibleSeriesBook): boolean {
+// An "announcement placeholder": Audible's stub for a book that exists but has
+// no schedule yet. It carries the sentinel release date 2200-01-01 and has
+// neither a narrator nor a runtime, because none of that was known when the
+// book was announced. A real dated book, even a year out, has all three.
+export function isPlaceholderBook(
+  book: Pick<HSAudibleSeriesBook, 'releaseDate' | 'publicationDatetime' | 'narrator' | 'durationMinutes'>,
+): boolean {
   const rel = book.releaseDate ?? book.publicationDatetime ?? ''
   if (!rel.startsWith(PLACEHOLDER_RELEASE_YEAR)) return false
   return !book.narrator && !book.durationMinutes
 }
 
-// The roster with phantom placeholders removed. Every consumer of a series
+// Audible lists some series books TWICE: the real product, plus the placeholder
+// left over from when it was announced. Both are children of the series and
+// share a sequence, so the series showed the same book twice - once properly,
+// once as a coverless row with a mangled author ("Zogarth .").
+//
+// A placeholder is only dropped when a REAL product occupies the same sequence.
+// Standing alone it is the only record of a genuinely upcoming book (announced,
+// not yet scheduled), and dropping it erased that book from the series entirely
+// - which is what happened to System Universe book 9.
+export function isPhantomRosterBook(
+  book: HSAudibleSeriesBook,
+  books: readonly HSAudibleSeriesBook[],
+): boolean {
+  if (!isPlaceholderBook(book)) return false
+  const slot = seqKey(book.sequence)
+  if (!slot) return false
+  return books.some((b) => b !== book && seqKey(b.sequence) === slot && !isPlaceholderBook(b))
+}
+
+// The roster with superseded placeholders removed. Every consumer of a series
 // roster should read it through this.
 export function realRosterBooks(
   books: readonly HSAudibleSeriesBook[],
 ): HSAudibleSeriesBook[] {
-  return books.filter((b) => !isPhantomRosterBook(b))
+  return books.filter((b) => !isPhantomRosterBook(b, books))
 }
 
 // A number key for a series sequence ("4", "2.5", "#4 ") -> "4"/"2.5", or '' when

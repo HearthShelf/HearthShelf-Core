@@ -22,23 +22,42 @@ export function clampCountdownWindow(days: number): number {
   return Math.max(1, Math.min(30, Math.round(days)))
 }
 
+/** Audible's sentinel for "announced, no date yet". Treated as NO date rather
+ *  than a real one - otherwise every countdown off it reads "63330 days". */
+const UNSCHEDULED_YEAR = '2200'
+
+/** True when the date is Audible's placeholder rather than a real schedule. */
+export function isUnscheduled(
+  book: { publicationDatetime?: string; releaseDate?: string },
+): boolean {
+  const raw = book.publicationDatetime || book.releaseDate || ''
+  return raw.startsWith(UNSCHEDULED_YEAR)
+}
+
 /** The release instant (ms epoch) for a book, preferring the precise
  *  publication_datetime and falling back to the date-only release_date (treated
- *  as local midnight of that day). null when neither is present/parseable. */
+ *  as local midnight of that day). null when neither is present/parseable, and
+ *  null for Audible's 2200-01-01 "not scheduled yet" sentinel, so callers show
+ *  a TBD state instead of counting down to the year 2200. */
 export function releaseMs(
   book: { publicationDatetime?: string; releaseDate?: string },
 ): number | null {
   const raw = book.publicationDatetime || book.releaseDate
   if (!raw) return null
+  if (isUnscheduled(book)) return null
   const t = Date.parse(raw)
   return Number.isNaN(t) ? null : t
 }
 
-/** True when the book's release is in the future relative to `now`. */
+/** True when the book isn't out yet. An unscheduled book (Audible's 2200
+ *  sentinel) counts as upcoming even though it has no usable date - it has been
+ *  announced but not released, which is exactly "not out yet". Without this it
+ *  would read as already available. */
 export function isUpcoming(
   book: { publicationDatetime?: string; releaseDate?: string },
   now: number,
 ): boolean {
+  if (isUnscheduled(book)) return true
   const ms = releaseMs(book)
   return ms !== null && ms > now
 }
@@ -56,11 +75,13 @@ export function daysUntilRelease(
   return Math.ceil(diff / 86_400_000)
 }
 
-/** Short human countdown, e.g. "Out today", "1 day", "12 days". null when no date. */
+/** Short human countdown, e.g. "Out today", "1 day", "12 days". "Date TBD" for
+ *  an announced-but-unscheduled book; null when there's no date at all. */
 export function countdownLabel(
   book: { publicationDatetime?: string; releaseDate?: string },
   now: number,
 ): string | null {
+  if (isUnscheduled(book)) return 'Date TBD'
   const d = daysUntilRelease(book, now)
   if (d === null) return null
   if (d <= 0) return 'Out today'
