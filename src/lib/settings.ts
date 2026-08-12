@@ -107,6 +107,45 @@ const DEFAULT_PLAYER_ACTIONS: Array<{ key: string; placement: string }> = [
   { key: 'carMode', placement: 'tray' },
 ]
 
+// Where a customizable bottom-nav destination can sit. As with player actions,
+// the item-KEY whitelist stays platform-side (mobile's normalizeNavItems
+// reconciles unknown keys); the catalog validates only the arrangement's shape.
+const NAV_PLACEMENTS = ['bar', 'menu', 'hidden']
+
+// True if v is a valid navItems arrangement: entries of { key, placement }.
+function isNavItems(v: unknown): boolean {
+  if (!Array.isArray(v)) return false
+  return v.every(
+    (a) =>
+      !!a &&
+      typeof a === 'object' &&
+      typeof (a as { key: unknown }).key === 'string' &&
+      NAV_PLACEMENTS.includes((a as { placement: unknown }).placement as string),
+  )
+}
+
+// Default bottom-nav arrangement: the tabs pinned before the nav became
+// customizable stay on the bar, and every More-menu destination keeps its place
+// in the menu. Duplicated from mobile's DEFAULT_NAV_ITEMS as a plain literal so
+// core stays platform-agnostic.
+// Keep in step with src/store/settings.ts in HearthShelf-Mobile.
+const DEFAULT_NAV_ITEMS: Array<{ key: string; placement: string }> = [
+  { key: 'index', placement: 'bar' },
+  { key: 'library', placement: 'bar' },
+  { key: 'now', placement: 'bar' },
+  { key: 'stats', placement: 'bar' },
+  { key: 'feedback', placement: 'bar' },
+  { key: 'discover', placement: 'menu' },
+  { key: 'questgiver', placement: 'menu' },
+  { key: 'following', placement: 'menu' },
+  { key: 'downloads', placement: 'menu' },
+  { key: 'history', placement: 'menu' },
+  { key: 'collections', placement: 'menu' },
+  { key: 'playlists', placement: 'menu' },
+  { key: 'settings', placement: 'menu' },
+  { key: 'server-settings', placement: 'menu' },
+]
+
 /**
  * Catalog key for each ebook-reader preference. The reader's own model
  * (lib/reader.ts) names its fields without a prefix (`theme`, `size`), which
@@ -517,6 +556,18 @@ const DEFS: SettingDef[] = [
     type: 'json',
     validate: isPlayerActions,
     default: DEFAULT_PLAYER_ACTIONS,
+  },
+
+  // The bottom navigation's arrangement: which destinations are pinned to the
+  // bar, which live under More, and which are hidden. Device-scoped like the
+  // other nav prefs (floatingNav), since it's tied to the screen it's laid out
+  // on rather than to the reader.
+  {
+    key: 'navItems',
+    scope: 'device',
+    type: 'json',
+    validate: isNavItems,
+    default: DEFAULT_NAV_ITEMS,
   },
 
   // --- Release notifications (account) ---
