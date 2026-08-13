@@ -68,6 +68,63 @@ export interface HSCompareResponse {
   username?: string
 }
 
+// --- User profile (HearthShelf backend, /hs/social/profile) ---
+// Everything one user's profile page shows, in a single round trip. Three
+// independent privacy gates apply server-side (see the route): a roster gate
+// that 403s for users who aren't shareable at all, then shareReadBooks for
+// `finished` and shareCurrentlyListening for `listening`. The caller always
+// sees their own profile in full.
+
+/** What a user is listening to now, or last listened to. `isLive` is true when
+ * their latest book session updated within the presence window (~3 min) - the
+ * same signal listening-now uses, so the UI can say "listening now" vs "last
+ * listened". Progress fields come from their mediaProgresses row for the item. */
+export interface HSProfileListen {
+  libraryItemId: string
+  title: string
+  author: string
+  narrator: string
+  durationSec: number
+  currentTimeSec: number
+  /** 0..1 fraction complete, as ABS stores it. */
+  progress: number
+  isFinished: boolean
+  /** ms epoch of the last session update; null when unparseable. */
+  lastListenedAt: number | null
+  isLive: boolean
+}
+
+/** One finished book on a profile. `alsoMine` is true when the CALLER has also
+ * finished it - computed server-side so the shared-books view needs no second
+ * request. Always false when viewing your own profile. */
+export interface HSProfileBook {
+  libraryItemId: string
+  title: string
+  finishedAt: number | null
+  alsoMine: boolean
+}
+
+/** GET /hs/social/profile?userId= response. `me`/`target` are the same compare
+ * shape the compare endpoint serves, so the profile can render side-by-side
+ * bars. `readShared`/`listeningShared` report which sections the target opted
+ * into: when false, the matching field is empty and the UI shows "not shared"
+ * rather than "nothing here". `available` is false when ABS's db isn't mounted;
+ * the route 403s (not_shareable) for a user off the visibility roster. */
+export interface HSProfileResponse {
+  available: boolean
+  userId: string
+  username: string
+  isMe: boolean
+  me: HSCompareStats
+  target: HSCompareStats
+  readShared: boolean
+  listeningShared: boolean
+  listening: HSProfileListen | null
+  finished: HSProfileBook[]
+  /** How many of `finished` the caller has also finished. */
+  sharedCount: number
+}
+
 /** One user's relationship to a book, privacy-filtered server-side. 'finished'
  * readers are gated by shareReadBooks; 'reading' (started, not finished) by
  * shareCurrentlyListening. Absent status means 'finished' (older servers). */
