@@ -9,10 +9,16 @@ export interface QueueEntry {
   author: string
 }
 
-// Per-user "not right now" dismissals: series and individual books the user
-// hid from Auto sources (the queue + the Continue-* home shelves). Reversible;
-// stored server-side keyed by (server_id, user_id). Empty arrays = nothing
-// hidden. buildAutoQueue and the shelf builders filter against these.
+// Per-user "no interest" ignores: series and individual books the user does not
+// want suggested. Reversible; stored server-side keyed by (server_id, user_id).
+// Empty arrays = nothing ignored.
+//
+// Ignore is not hide. An ignored series drops out of every SUGGESTION surface -
+// the Auto queue, the Continue-* home shelves, Discover, and QuestGiver - but
+// stays fully present in the library, in search, and on its own series page,
+// where the control is offered again to un-ignore it. buildAutoQueue and the
+// shelf builders filter on the ids directly; the recommendation builders take a
+// resolved item-id set from ignoredItemIds() because they never see series ids.
 export interface Dismissals {
   seriesIds: string[]
   itemIds: string[]

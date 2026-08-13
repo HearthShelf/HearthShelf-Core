@@ -190,9 +190,15 @@ export function qgBuildProfile(books: QgBook[]): QgProfile {
 }
 
 // Library candidate pool: owned books not finished and not in progress.
-export function qgLibraryCandidates(books: QgBook[]): QgCandidate[] {
+// `ignoredIds` (from ignoredItemIds()) holds books in series the listener
+// ignored - QuestGiver never suggests from a series they said they have no
+// interest in, though the books stay in the library.
+export function qgLibraryCandidates(
+  books: QgBook[],
+  ignoredIds: ReadonlySet<string> = new Set(),
+): QgCandidate[] {
   return books
-    .filter((b) => !b.finished && !(b.progress > 0))
+    .filter((b) => !b.finished && !(b.progress > 0) && !ignoredIds.has(b.id))
     .map((b) => ({
       id: b.id,
       title: b.title,
@@ -386,6 +392,12 @@ export interface QgResolveOptions {
   canRequest: boolean
   /** How many picks to keep. Defaults to the engine's own answer count. */
   count?: number
+  /**
+   * Item ids in series the listener ignored, from ignoredItemIds(). A run is a
+   * point-in-time snapshot, so a run saved before the ignore still names those
+   * books - they are dropped here, at the last gate before render.
+   */
+  ignoredIds?: ReadonlySet<string>
 }
 
 /**
@@ -398,6 +410,7 @@ export interface QgResolveOptions {
  */
 export function qgResolvePicks(opts: QgResolveOptions): QgRenderedPick[] {
   const { result, books, externalById, priorPicks, canRequest } = opts
+  const ignoredIds = opts.ignoredIds ?? new Set<string>()
 
   const byId = new Map(books.map((b) => [b.id, b]))
   const priorKeys = new Map<string, number>()
@@ -407,7 +420,7 @@ export function qgResolvePicks(opts: QgResolveOptions): QgRenderedPick[] {
   const picks: QgRenderedPick[] = []
 
   for (const p of result.picks) {
-    if (seen.has(p.id)) continue
+    if (seen.has(p.id) || ignoredIds.has(p.id)) continue
     seen.add(p.id)
     const b = byId.get(p.id)
     if (b) {

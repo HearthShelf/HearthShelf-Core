@@ -41,6 +41,11 @@ export interface RankInputs {
   // other shelf draws from the unstarted pool - this holds the QG shelf to the
   // same rule. Omit only when progress is genuinely unavailable.
   progressById?: Map<string, ABSMediaProgress>
+  // Item ids belonging to series the listener ignored, from ignoredItemIds().
+  // The base builder already skips these, but saved QuestGiver runs and the
+  // cached monthly AI shelf are point-in-time: both can still name a book from
+  // a series ignored after the run, so they are filtered here too.
+  ignoredIds?: ReadonlySet<string>
 }
 
 // True when feedback says the user does not want to see this item anywhere.
@@ -64,9 +69,10 @@ function rankShelfItems(
   items: ABSLibraryItem[],
   feedback: DiscoverFeedbackMap,
   ratings: Record<string, number>,
+  ignoredIds: ReadonlySet<string>,
 ): ABSLibraryItem[] {
   return items
-    .filter((it) => !isHidden(feedback[it.id]))
+    .filter((it) => !isHidden(feedback[it.id]) && !ignoredIds.has(it.id))
     .map((it, i) => ({ it, i, b: feedbackBoost(feedback[it.id], ratings[it.id]) }))
     .sort((a, b) => b.b - a.b || a.i - b.i)
     .map((x) => x.it)
@@ -86,6 +92,7 @@ export function rankDiscoverShelves(
   const ratings = inputs.ratings ?? {}
   const qgPicks = inputs.questGiverPicks ?? []
   const progressById = inputs.progressById
+  const ignoredIds = inputs.ignoredIds ?? new Set<string>()
 
   const ranked: DiscoverShelf[] = []
 
@@ -98,7 +105,7 @@ export function rankDiscoverShelves(
   for (const id of qgPicks) {
     if (qgSeen.has(id)) continue
     const it = byId.get(id)
-    if (!it || isHidden(feedback[id])) continue
+    if (!it || isHidden(feedback[id]) || ignoredIds.has(id)) continue
     const p = progressById?.get(id)
     if (p?.isFinished || (p?.progress ?? 0) > 0) continue
     qgSeen.add(id)
@@ -116,7 +123,9 @@ export function rankDiscoverShelves(
   // 2. The deterministic shelves, feedback-applied. De-dupe the QuestGiver items
   //    out of them so a pick does not appear twice on the page.
   for (const shelf of shelves) {
-    const items = rankShelfItems(shelf.items, feedback, ratings).filter((it) => !qgSeen.has(it.id))
+    const items = rankShelfItems(shelf.items, feedback, ratings, ignoredIds).filter(
+      (it) => !qgSeen.has(it.id),
+    )
     if (items.length < minShelf) continue
     ranked.push({ ...shelf, items })
   }

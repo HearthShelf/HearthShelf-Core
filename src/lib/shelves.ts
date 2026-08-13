@@ -79,7 +79,7 @@ export function continueListeningShelf(
   return out
 }
 
-/** True if a series is currently dismissed. */
+/** True if a series is currently ignored. */
 export function isSeriesDismissed(seriesId: string, dismissed: Dismissals): boolean {
   return dismissed.seriesIds.includes(seriesId)
 }
@@ -87,4 +87,28 @@ export function isSeriesDismissed(seriesId: string, dismissed: Dismissals): bool
 /** True if a book is currently dismissed. */
 export function isItemDismissed(itemId: string, dismissed: Dismissals): boolean {
   return dismissed.itemIds.includes(itemId)
+}
+
+/**
+ * Every library item id belonging to an ignored series.
+ *
+ * Recommendation surfaces (Discover, QuestGiver) see only the minified item
+ * shape, whose metadata carries a `seriesName` string and no series id - so they
+ * cannot test `Dismissals.seriesIds` themselves. The series endpoint is the only
+ * join: `ABSSeries.books` inverts to item -> series. Callers that already hold
+ * the series list resolve the set once here and hand the recommendation builders
+ * a flat id set to skip.
+ *
+ * Ignoring is "no interest", not "hide": the returned ids are filtered out of
+ * suggestions only. Library, search, and the series page itself still show them.
+ */
+export function ignoredItemIds(series: ABSSeries[], dismissed: Dismissals): Set<string> {
+  const ignoredSeries = new Set(dismissed.seriesIds)
+  const out = new Set<string>()
+  if (ignoredSeries.size === 0) return out
+  for (const s of series) {
+    if (!ignoredSeries.has(s.id)) continue
+    for (const b of s.books) out.add(b.id)
+  }
+  return out
 }

@@ -80,13 +80,17 @@ export interface DiscoverSummary {
   recentFinishes: string[]
 }
 
-// Unstarted owned books as AI-shelf candidates.
+// Unstarted owned books as AI-shelf candidates. `ignoredIds` (from
+// ignoredItemIds()) drops books in ignored series before they reach the AI
+// prompt, so a monthly shelf never comes back recommending a series the
+// listener said they have no interest in.
 export function discoverCandidates(
   items: ABSLibraryItem[],
   progressById: Map<string, ABSMediaProgress>,
+  ignoredIds: ReadonlySet<string> = new Set(),
 ): DiscoverCandidate[] {
   return statesOf(items, progressById)
-    .filter((s) => s.unstarted)
+    .filter((s) => s.unstarted && !ignoredIds.has(s.item.id))
     .map((s) => {
       const m = s.item.media.metadata
       return {
@@ -121,12 +125,17 @@ export function buildDiscoverSummary(
 }
 
 // Build all Discover shelves in priority order, de-duping books across rows.
+// `ignoredIds` (from ignoredItemIds()) holds books in series the listener has
+// ignored: they are excluded from every row's pool AND from the series/author/
+// narrator affinity signals, so an ignored series neither seeds a shelf nor
+// skews what the other shelves recommend.
 export function buildDiscoverShelves(
   items: ABSLibraryItem[],
   progressById: Map<string, ABSMediaProgress>,
+  ignoredIds: ReadonlySet<string> = new Set(),
 ): { shelves: DiscoverShelf[]; profile: QgProfile } {
   const profile = qgBuildProfile(qgBooks(items, progressById))
-  const states = statesOf(items, progressById)
+  const states = statesOf(items, progressById).filter((s) => !ignoredIds.has(s.item.id))
   const unstarted = states.filter((s) => s.unstarted).map((s) => s.item)
 
   const used = new Set<string>()
