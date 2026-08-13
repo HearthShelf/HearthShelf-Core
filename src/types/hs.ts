@@ -521,6 +521,11 @@ export interface HSSubscription {
   asin?: string
   /** Audible series ASIN (series subs, and the parent series of a book sub). */
   seriesAsin?: string
+  /** The ABS series this follow corresponds to, recorded when the follow was
+   *  made from a library or series page. Absent for follows created from an
+   *  Audible search, where no ABS series exists yet. Lets the library match a
+   *  followed series by id instead of guessing from its name. */
+  absSeriesId?: string
   title: string
   author?: string
   seriesTitle?: string
@@ -545,6 +550,7 @@ export interface HSSubscriptionCreate {
   kind: HSSubscriptionKind
   asin?: string
   seriesAsin?: string
+  absSeriesId?: string
   title: string
   author?: string
   seriesTitle?: string
