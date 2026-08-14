@@ -62,6 +62,10 @@ export interface HSRuntimeInfo {
   // AIO first-run only: whether the wizard can offer "Restore from backup"
   // (ABS is up and has no root yet). False on slim/hosted and on a set-up box.
   restoreAvailable?: boolean
+  // Whether a paired box offers its "Sign in with HearthShelf" button. Admins
+  // turn it off to run purely on ABS logins while staying paired. Optional, and
+  // absent means enabled, so a box on an older build keeps its button.
+  hostedLoginEnabled?: boolean
 }
 
 // The honest outcome summary the restore-from-backup onboarding path returns,
@@ -787,6 +791,8 @@ export interface HSHostedConfigStatus {
   adminCredStatus?: HSAdminCredStatus
   /** Whether a stale/broken credential can be recovered automatically. */
   canSelfHeal?: boolean
+  /** Whether the login page offers "Sign in with HearthShelf". Absent = yes. */
+  loginButtonEnabled?: boolean
 }
 
 /** GET /hs/hosted/service-health response. */
