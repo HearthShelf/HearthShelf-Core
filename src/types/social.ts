@@ -104,6 +104,38 @@ export interface HSProfileBook {
   alsoMine: boolean
 }
 
+/** A named thing and how often it came up in a year (an author or narrator by
+ * books finished, a series by books). */
+export interface HSYearTally {
+  name: string
+  count: number
+}
+
+/** One year of a listener's finishes, recapped. Every highlight is nullable
+ * because a year can lack the data to compute it: a library with no durations
+ * yields no longest/shortest, a book with no author yields no topAuthor.
+ *
+ * Note ABS overwrites finishedAt on a re-finish and keeps no completion
+ * history, so a re-read book counts only toward the year it was LAST finished
+ * in. */
+export interface HSYearInReview {
+  year: number
+  /** Books finished in this year. */
+  books: number
+  /** Their combined length, in seconds. */
+  seconds: number
+  longest: { title: string; durationSec: number } | null
+  shortest: { title: string; durationSec: number } | null
+  topAuthor: HSYearTally | null
+  /** A book with several narrators counts toward each. */
+  topNarrator: HSYearTally | null
+  topSeriesByBooks: HSYearTally | null
+  /** The series they spent the most listening time in, seconds. */
+  topSeriesByTime: { name: string; seconds: number } | null
+  /** Series whose first finish landed in this year. */
+  seriesStarted: number
+}
+
 /** GET /hs/social/profile?userId= response. `me`/`target` are the same compare
  * shape the compare endpoint serves, so the profile can render side-by-side
  * bars. `readShared`/`listeningShared` report which sections the target opted
@@ -123,6 +155,10 @@ export interface HSProfileResponse {
   finished: HSProfileBook[]
   /** How many of `finished` the caller has also finished. */
   sharedCount: number
+  /** Per-year recap, newest year first. Gated by the same `readShared` flag as
+   *  `finished`, so it is empty when the reading list is private. Absent on
+   *  older servers - treat a missing field as []. */
+  yearsInReview?: HSYearInReview[]
 }
 
 /** One user's relationship to a book, privacy-filtered server-side. 'finished'
