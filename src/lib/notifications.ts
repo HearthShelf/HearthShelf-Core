@@ -10,6 +10,8 @@ import type {
 
 export const DEFAULT_NOTIFICATION_PREFS: HSNotificationPrefs = {
   enabled: true,
+  notifyInApp: true,
+  notifyEmail: false,
   notifyAvailableInLibrary: true,
   notifyOnReleaseDate: true,
   reminderDaysBefore: 3,

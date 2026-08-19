@@ -571,11 +571,13 @@ const DEFS: SettingDef[] = [
   },
 
   // --- Release notifications (account) ---
-  // Preferences for followed-book / series push notifications + the Home
+  // Preferences for followed-book / series notifications + the Home
   // countdown banner. Account-scoped so they follow the user across devices; the
-  // server's push job reads them via getUserSetting. Keep in step with
+  // server's delivery job reads them via getUserSetting. Keep in step with
   // HSNotificationPrefs + DEFAULT_NOTIFICATION_PREFS in lib/notifications.ts.
   { key: 'notifyEnabled', scope: 'account', type: 'boolean', default: true },
+  { key: 'notifyInApp', scope: 'account', type: 'boolean', default: true },
+  { key: 'notifyEmail', scope: 'account', type: 'boolean', default: false },
   { key: 'notifyAvailableInLibrary', scope: 'account', type: 'boolean', default: true },
   { key: 'notifyOnReleaseDate', scope: 'account', type: 'boolean', default: true },
   {

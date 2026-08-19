@@ -575,14 +575,18 @@ export interface HSSubscriptionsResponse {
  *  notify* keys (account-scoped, synced via /hs/settings); this is the assembled
  *  view of them that the notifications helpers + push job consume. */
 export interface HSNotificationPrefs {
-  /** Master switch - off silences every notification for this user. */
+  /** Master switch for followed-book and series alerts. */
   enabled: boolean
-  /** Push when a followed book lands in the ABS library (the "ready to listen"
+  /** Store alerts in HearthShelf's shared inbox and send Mobile push alerts. */
+  notifyInApp: boolean
+  /** Email alerts to the address on the user's server account. */
+  notifyEmail: boolean
+  /** Alert when a followed book lands in the ABS library (the "ready to listen"
    *  moment - the core signal). */
   notifyAvailableInLibrary: boolean
-  /** Push on the book's Audible release date, even before it syncs into ABS. */
+  /** Alert on the book's Audible release date, even before it syncs into ABS. */
   notifyOnReleaseDate: boolean
-  /** Push a heads-up this many days before release (0 disables the reminder). */
+  /** Send a heads-up this many days before release (0 disables the reminder). */
   reminderDaysBefore: number
   /** How many days out a followed book starts showing on the Home countdown
    *  banner. 1-30, default 14. */
