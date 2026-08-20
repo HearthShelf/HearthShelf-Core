@@ -225,6 +225,17 @@ export type NoteVisibility = 'club' | 'public' | 'personal'
  * position gate and shows to everyone regardless of playback position (still
  * carries timeSec for the scrubber marker). `safe` applies only to top-level
  * notes; replies never inherit it. */
+/** Someone addressed by an @mention in a note.
+ *
+ * `userId` is the identity - mentions are stored and delivered by id, never by
+ * re-parsing the body, so a later username change can't re-point a mention at
+ * someone else or orphan it. `username` is only the display snapshot taken when
+ * the note was written. */
+export interface HSNoteMention {
+  userId: string
+  username: string
+}
+
 export interface HSNote {
   id: string
   userId: string
@@ -237,6 +248,8 @@ export interface HSNote {
   safe: boolean
   body: string
   createdAt: number
+  /** Club members addressed with @. Absent/empty when the note mentions nobody. */
+  mentions?: HSNoteMention[]
 }
 
 /** Anonymous stub for a locked ahead-note: id + timestamp only, no body/author/

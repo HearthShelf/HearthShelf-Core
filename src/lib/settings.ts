@@ -10,6 +10,7 @@ import {
   MAX_REC_SHELF_COUNT,
   isHomeSections,
 } from './homeSections.ts'
+import { DEFAULT_NOTIFY_PREFS, isNotifyPrefs } from './notifications.ts'
 import {
   READER_DEFAULTS,
   READER_SIZE_MIN,
@@ -571,33 +572,17 @@ const DEFS: SettingDef[] = [
     default: DEFAULT_NAV_ITEMS,
   },
 
-  // --- Release notifications (account) ---
-  // Preferences for followed-book / series notifications + the Home
-  // countdown banner. Account-scoped so they follow the user across devices; the
-  // server's delivery job reads them via getUserSetting. Keep in step with
-  // HSNotificationPrefs + DEFAULT_NOTIFICATION_PREFS in lib/notifications.ts.
-  { key: 'notifyEnabled', scope: 'account', type: 'boolean', default: true },
-  { key: 'notifyInApp', scope: 'account', type: 'boolean', default: true },
-  { key: 'notifyEmail', scope: 'account', type: 'boolean', default: false },
-  { key: 'notifyAvailableInLibrary', scope: 'account', type: 'boolean', default: true },
-  { key: 'notifyOnReleaseDate', scope: 'account', type: 'boolean', default: true },
+  // --- Notifications (account) ---
+  // One structured pref rather than a key per toggle: `global` channel choices
+  // plus per-type overrides (see HSNotifyPrefs). A new notification category is
+  // then a change in core alone, not a new catalog key every client must learn.
+  // Read it through normalizeNotifyPrefs/shouldNotify in lib/notifications.ts.
   {
-    key: 'notifyReminderDaysBefore',
+    key: 'notifyPrefs',
     scope: 'account',
-    type: 'number',
-    min: 0,
-    max: 30,
-    int: true,
-    default: 3,
-  },
-  {
-    key: 'notifyCountdownWindowDays',
-    scope: 'account',
-    type: 'number',
-    min: 1,
-    max: 30,
-    int: true,
-    default: 14,
+    type: 'json',
+    validate: isNotifyPrefs,
+    default: DEFAULT_NOTIFY_PREFS,
   },
 
   // --- External book links (account) ---

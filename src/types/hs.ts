@@ -571,25 +571,60 @@ export interface HSSubscriptionsResponse {
   subscriptions: HSSubscription[]
 }
 
-/** Per-user notification preferences. These live in the settings catalog as the
- *  notify* keys (account-scoped, synced via /hs/settings); this is the assembled
- *  view of them that the notifications helpers + push job consume. */
-export interface HSNotificationPrefs {
-  /** Master switch for followed-book and series alerts. */
+/** Where a notification can be delivered. `inApp` is the shared notification
+ *  tray (the bell); `push` is a Mobile push alert; `email` goes to the address on
+ *  the user's server account. These are independent - `push` used to be folded
+ *  into `inApp`, which left no way to keep the tray but silence the phone. */
+export type NotifyChannel = 'inApp' | 'push' | 'email'
+
+/** What a notification can be about. Adding a kind here (plus an entry in
+ *  HSNotifyPrefs['types'] and DEFAULT_NOTIFY_PREFS) is the whole cost of a new
+ *  notification category - there is no per-key settings-catalog churn. */
+export type NotifyType = 'release' | 'mention' | 'clubInvite'
+
+export interface NotifyChannels {
+  inApp: boolean
+  push: boolean
+  email: boolean
+}
+
+export interface NotifyTypePrefs {
+  /** Off silences this category on every channel. */
   enabled: boolean
-  /** Store alerts in HearthShelf's shared inbox and send Mobile push alerts. */
-  notifyInApp: boolean
-  /** Email alerts to the address on the user's server account. */
-  notifyEmail: boolean
+  /** Per-channel overrides. Omitted channels inherit `global`, so a type that
+   *  never sets this simply follows the user's global choice. */
+  channels?: Partial<NotifyChannels>
+}
+
+/** Release alerts carry extra scheduling knobs that no other type needs. */
+export interface NotifyReleasePrefs extends NotifyTypePrefs {
   /** Alert when a followed book lands in the ABS library (the "ready to listen"
    *  moment - the core signal). */
-  notifyAvailableInLibrary: boolean
+  availableInLibrary: boolean
   /** Alert on the book's Audible release date, even before it syncs into ABS. */
-  notifyOnReleaseDate: boolean
+  onReleaseDate: boolean
   /** Send a heads-up this many days before release (0 disables the reminder). */
   reminderDaysBefore: number
+}
+
+/** Per-user notification preferences: one account-scoped `notifyPrefs` key in
+ *  the settings catalog (synced via /hs/settings), consumed by the clients'
+ *  settings UI and by the server's delivery paths.
+ *
+ *  Two layers: `global` is the user's default channel set, and each entry in
+ *  `types` may narrow it. Resolve the pair with resolveChannels()/shouldNotify()
+ *  in lib/notifications.ts rather than reading the fields directly - that is
+ *  where inheritance and the club-invite floor live. */
+export interface HSNotifyPrefs {
+  global: NotifyChannels
+  types: {
+    release: NotifyReleasePrefs
+    mention: NotifyTypePrefs
+    clubInvite: NotifyTypePrefs
+  }
   /** How many days out a followed book starts showing on the Home countdown
-   *  banner. 1-30, default 14. */
+   *  banner. 1-30, default 14. Not a notification, but it has always been
+   *  configured alongside these and has no better home. */
   countdownWindowDays: number
 }
 

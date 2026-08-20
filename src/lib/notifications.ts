@@ -4,23 +4,133 @@
 
 import type {
   HSAudibleSeriesBook,
-  HSNotificationPrefs,
+  HSNotifyPrefs,
   HSSubscription,
+  NotifyChannel,
+  NotifyChannels,
+  NotifyType,
 } from '../types/hs'
 
-export const DEFAULT_NOTIFICATION_PREFS: HSNotificationPrefs = {
-  enabled: true,
-  notifyInApp: true,
-  notifyEmail: false,
-  notifyAvailableInLibrary: true,
-  notifyOnReleaseDate: true,
-  reminderDaysBefore: 3,
+/** Everything on. A notification the user never opted out of should reach them:
+ *  the failure mode of a wrong default here is one extra alert, whereas the
+ *  opposite is a mention they never learn about. */
+export const DEFAULT_NOTIFY_PREFS: HSNotifyPrefs = {
+  global: { inApp: true, push: true, email: true },
+  types: {
+    release: {
+      enabled: true,
+      availableInLibrary: true,
+      onReleaseDate: true,
+      reminderDaysBefore: 3,
+    },
+    mention: { enabled: true },
+    clubInvite: { enabled: true },
+  },
   countdownWindowDays: 14,
+}
+
+/** The channels a given type actually delivers on: the user's global set, with
+ *  any per-type override applied on top. */
+export function resolveChannels(prefs: HSNotifyPrefs, type: NotifyType): NotifyChannels {
+  const global = prefs.global
+  const override = prefs.types[type]?.channels
+  return override ? { ...global, ...override } : { ...global }
+}
+
+/** Whether `type` should be delivered on `channel` for this user.
+ *
+ *  Club invites are floored ON for the in-app tray: an invite you cannot see is
+ *  an invite you cannot accept, which strands both the invitee and whoever sent
+ *  it. That floor is enforced here rather than by hiding the toggle, so no
+ *  client can drift out of the rule. */
+export function shouldNotify(
+  prefs: HSNotifyPrefs,
+  type: NotifyType,
+  channel: NotifyChannel,
+): boolean {
+  if (type === 'clubInvite' && channel === 'inApp') return true
+  if (!prefs.types[type]?.enabled) return false
+  return resolveChannels(prefs, type)[channel]
+}
+
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function channels(value: unknown, fallback: NotifyChannels): NotifyChannels {
+  const v = (value ?? {}) as Partial<NotifyChannels>
+  return {
+    inApp: bool(v.inApp, fallback.inApp),
+    push: bool(v.push, fallback.push),
+    email: bool(v.email, fallback.email),
+  }
+}
+
+/** Narrow a stored `notifyPrefs` value to a complete HSNotifyPrefs, filling any
+ *  missing or malformed field from the defaults.
+ *
+ *  This is deliberately total rather than a strict validator: settings sync can
+ *  hand us a value written by an older or newer client, and a notifications
+ *  subsystem that throws on an unexpected shape is worse than one that falls
+ *  back to "tell the user". Unknown per-type channel keys are dropped. */
+export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
+  const d = DEFAULT_NOTIFY_PREFS
+  if (!raw || typeof raw !== 'object') return { ...d, types: { ...d.types } }
+  const v = raw as Partial<HSNotifyPrefs>
+  const t = (v.types ?? {}) as Partial<HSNotifyPrefs['types']>
+  const global = channels(v.global, d.global)
+  // A per-type `channels` stays ABSENT unless the stored value had one, so a
+  // type keeps inheriting `global` instead of being frozen at today's values.
+  const overrideOf = (src: unknown): Partial<NotifyChannels> | undefined => {
+    if (!src || typeof src !== 'object') return undefined
+    const o = src as Partial<NotifyChannels>
+    const out: Partial<NotifyChannels> = {}
+    if (typeof o.inApp === 'boolean') out.inApp = o.inApp
+    if (typeof o.push === 'boolean') out.push = o.push
+    if (typeof o.email === 'boolean') out.email = o.email
+    return Object.keys(out).length ? out : undefined
+  }
+  const release = (t.release ?? {}) as Partial<HSNotifyPrefs['types']['release']>
+  const mention = (t.mention ?? {}) as Partial<HSNotifyPrefs['types']['mention']>
+  const invite = (t.clubInvite ?? {}) as Partial<HSNotifyPrefs['types']['clubInvite']>
+  const reminder = Number(release.reminderDaysBefore)
+  return {
+    global,
+    types: {
+      release: {
+        enabled: bool(release.enabled, d.types.release.enabled),
+        channels: overrideOf(release.channels),
+        availableInLibrary: bool(release.availableInLibrary, d.types.release.availableInLibrary),
+        onReleaseDate: bool(release.onReleaseDate, d.types.release.onReleaseDate),
+        reminderDaysBefore: Number.isFinite(reminder)
+          ? Math.max(0, Math.min(30, Math.round(reminder)))
+          : d.types.release.reminderDaysBefore,
+      },
+      mention: {
+        enabled: bool(mention.enabled, d.types.mention.enabled),
+        channels: overrideOf(mention.channels),
+      },
+      clubInvite: {
+        enabled: bool(invite.enabled, d.types.clubInvite.enabled),
+        channels: overrideOf(invite.channels),
+      },
+    },
+    countdownWindowDays: clampCountdownWindow(Number(v.countdownWindowDays)),
+  }
+}
+
+/** Settings-catalog predicate for `notifyPrefs`.
+ *
+ *  Intentionally permissive: normalizeNotifyPrefs() can rebuild a usable value
+ *  from anything object-shaped, so rejecting here would only strand a user on a
+ *  stale value written by another client. Non-objects are still refused. */
+export function isNotifyPrefs(value: unknown): boolean {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 /** Clamp the countdown window to the supported 1-30 range. */
 export function clampCountdownWindow(days: number): number {
-  if (!Number.isFinite(days)) return DEFAULT_NOTIFICATION_PREFS.countdownWindowDays
+  if (!Number.isFinite(days)) return DEFAULT_NOTIFY_PREFS.countdownWindowDays
   return Math.max(1, Math.min(30, Math.round(days)))
 }
 
@@ -29,9 +139,10 @@ export function clampCountdownWindow(days: number): number {
 const UNSCHEDULED_YEAR = '2200'
 
 /** True when the date is Audible's placeholder rather than a real schedule. */
-export function isUnscheduled(
-  book: { publicationDatetime?: string; releaseDate?: string },
-): boolean {
+export function isUnscheduled(book: {
+  publicationDatetime?: string
+  releaseDate?: string
+}): boolean {
   const raw = book.publicationDatetime || book.releaseDate || ''
   return raw.startsWith(UNSCHEDULED_YEAR)
 }
@@ -41,9 +152,10 @@ export function isUnscheduled(
  *  as local midnight of that day). null when neither is present/parseable, and
  *  null for Audible's 2200-01-01 "not scheduled yet" sentinel, so callers show
  *  a TBD state instead of counting down to the year 2200. */
-export function releaseMs(
-  book: { publicationDatetime?: string; releaseDate?: string },
-): number | null {
+export function releaseMs(book: {
+  publicationDatetime?: string
+  releaseDate?: string
+}): number | null {
   const raw = book.publicationDatetime || book.releaseDate
   if (!raw) return null
   if (isUnscheduled(book)) return null
@@ -94,10 +206,7 @@ export function countdownLabel(
  *  It must be an unresolved book (not yet available) whose release is within the
  *  configured window and still in the future. */
 export function isInCountdownWindow(
-  sub: Pick<
-    HSSubscription,
-    'kind' | 'available' | 'publicationDatetime' | 'releaseDate'
-  >,
+  sub: Pick<HSSubscription, 'kind' | 'available' | 'publicationDatetime' | 'releaseDate'>,
   windowDays: number,
   now: number,
 ): boolean {
@@ -120,7 +229,7 @@ export function isInCountdownWindow(
  *  appearing on Home just because a follow still exists for it. */
 export function bannerSubscriptions(
   subs: HSSubscription[],
-  prefs: Pick<HSNotificationPrefs, 'countdownWindowDays'>,
+  prefs: Pick<HSNotifyPrefs, 'countdownWindowDays'>,
   now: number,
   ignoredAsins?: readonly string[],
 ): HSSubscription[] {
@@ -211,7 +320,7 @@ export function pendingReleases(
  *  dated, still ahead, and inside the reader's window. */
 export function bannerReleases(
   releases: readonly PendingRelease[],
-  prefs: Pick<HSNotificationPrefs, 'countdownWindowDays'>,
+  prefs: Pick<HSNotifyPrefs, 'countdownWindowDays'>,
   now: number,
 ): PendingRelease[] {
   const window = clampCountdownWindow(prefs.countdownWindowDays)
@@ -258,9 +367,7 @@ export function nextSeriesBook(
   const unowned = books
     .filter(
       (b) =>
-        b.title &&
-        !b.owned &&
-        !(ignored && b.asin && ignored.has(String(b.asin).toLowerCase())),
+        b.title && !b.owned && !(ignored && b.asin && ignored.has(String(b.asin).toLowerCase())),
     )
     .sort((a, b) => (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0))
   if (unowned.length === 0) return null

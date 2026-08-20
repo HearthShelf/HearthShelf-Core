@@ -161,18 +161,16 @@ export function sortMembersByProgress(members: HSClubMember[]): HSClubMember[] {
  * and the queue's move up/down, so server and client never disagree on it.
  */
 export function clubBookOrder(books: HSClubBook[], queue: HSClubBook[]): HSClubBook[] {
-  const history = books
-    .slice()
-    .sort((a, b) => {
-      // The current book (neither finished nor set aside) always sorts last in
-      // history; among the rest, oldest start first.
-      const terminal = (x: HSClubBook): number =>
-        x.finishedAt == null && x.abandonedAt == null ? 1 : 0
-      const ta = terminal(a)
-      const tb = terminal(b)
-      if (ta !== tb) return ta - tb
-      return a.startedAt - b.startedAt
-    })
+  const history = books.slice().sort((a, b) => {
+    // The current book (neither finished nor set aside) always sorts last in
+    // history; among the rest, oldest start first.
+    const terminal = (x: HSClubBook): number =>
+      x.finishedAt == null && x.abandonedAt == null ? 1 : 0
+    const ta = terminal(a)
+    const tb = terminal(b)
+    if (ta !== tb) return ta - tb
+    return a.startedAt - b.startedAt
+  })
   return [...history, ...sortClubQueue(queue)]
 }
 
@@ -398,7 +396,8 @@ export function clubHeuristic(
       : `A well-matched ${x.c.genre} listen to start your club's shelf.`,
   }))
 
-  const source = basis === 'all-members-finished' ? "everyone's finished books" : "your club's reading"
+  const source =
+    basis === 'all-members-finished' ? "everyone's finished books" : "your club's reading"
   const intro = taste.dominant
     ? `Based on ${source} - mostly ${taste.dominant} - here's what your club could read next.`
     : "Here's what your club could read next."
@@ -447,4 +446,79 @@ export function craftClubPrompt(
     'Each reason is ONE warm, specific sentence a librarian would say to the group.',
     'Return ONLY JSON, no prose: {"intro":"one sentence","picks":[{"id":"...","reason":"..."}]}',
   ].join('\n')
+}
+
+// --- @mentions ---------------------------------------------------------------
+
+/** A member as far as mention matching is concerned. */
+export interface MentionCandidate {
+  userId: string
+  username: string
+}
+
+/** True when `ch` may sit directly before the '@' of a mention. Keeps "e@b" and
+ *  an email address from reading as a mention, while still allowing "(@ann". */
+function boundaryBefore(ch: string | undefined): boolean {
+  return ch === undefined || !/[A-Za-z0-9_@.-]/.test(ch)
+}
+
+/**
+ * The club members addressed by @mentions in `body`, as userIds.
+ *
+ * Matching is roster-driven rather than pattern-driven: usernames may contain
+ * spaces and regex-special characters, so there is no token shape to match
+ * against. Candidates are tried LONGEST FIRST so "@ann marie" resolves to Ann
+ * Marie rather than to Ann followed by the word "marie".
+ *
+ * Case-insensitive and de-duplicated, returned in the order the mentions appear
+ * in the text. A name that isn't on the roster is never invented - this only
+ * ever returns ids that were passed in, which is what keeps the client from
+ * naming a user it shouldn't know about. Authorization is still the server's
+ * job; this is convenience, not a boundary.
+ */
+export function extractMentions(body: string, members: readonly MentionCandidate[]): string[] {
+  if (!body || !members.length) return []
+  const text = body.toLowerCase()
+  const ranked = members
+    .filter((m) => m.userId && m.username)
+    .slice()
+    .sort((a, b) => b.username.length - a.username.length)
+
+  // Collect (position, userId) so the result can be ordered by where each
+  // mention appears in the text rather than by roster iteration order.
+  const hits: Array<{ at: number; userId: string }> = []
+  // Track which characters a mention already claimed, so "@ann marie" can't also
+  // report a match for the shorter "@ann" sitting inside it.
+  const claimed = new Array<boolean>(body.length).fill(false)
+
+  for (const member of ranked) {
+    const needle = member.username.toLowerCase()
+    let from = 0
+    for (;;) {
+      const at = text.indexOf('@' + needle, from)
+      if (at === -1) break
+      const end = at + needle.length + 1
+      const nextCh = body[end]
+      // The character after must not continue a longer name, or "@ann" would
+      // match inside "@annabel" whenever Annabel isn't herself on the roster.
+      const endsCleanly = nextCh === undefined || !/[A-Za-z0-9_-]/.test(nextCh)
+      if (boundaryBefore(body[at - 1]) && endsCleanly && !claimed[at]) {
+        for (let i = at; i < end; i++) claimed[i] = true
+        hits.push({ at, userId: member.userId })
+        from = end
+        continue
+      }
+      from = at + 1
+    }
+  }
+
+  hits.sort((a, b) => a.at - b.at)
+  const found: string[] = []
+  const seen = new Set<string>()
+  for (const hit of hits) {
+    if (seen.has(hit.userId)) continue
+    seen.add(hit.userId)
+    found.push(hit.userId)
+  }
+  return found
 }
