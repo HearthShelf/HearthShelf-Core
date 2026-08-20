@@ -261,10 +261,11 @@ export interface HSNotesResponse {
 // one current book), per-book chat, member progress race, and unread cursors.
 // See docs/social.md.
 
-/** One book in a club's reading timeline. A book is in exactly one of three
+/** One book in a club's reading timeline. A book is in exactly one of four
  * states: queued (queuedAt set, not yet started), current (started, finishedAt
- * null), or finished (finishedAt stamped). title/author are snapshots so the
- * timeline renders even if the item later leaves ABS. */
+ * and abandonedAt both null), finished (finishedAt stamped), or set aside
+ * (abandonedAt stamped - started but shelved without finishing). title/author
+ * are snapshots so the timeline renders even if the item later leaves ABS. */
 export interface HSClubBook {
   libraryItemId: string
   title: string
@@ -276,6 +277,13 @@ export interface HSClubBook {
   /** ms epoch when the book was added to the up-next queue; null once it has
    * been promoted to the current book (or if it was never queued). */
   queuedAt: number | null
+  /** ms epoch when the club set this book aside without finishing it. A set
+   * aside book left the current slot but was never read to the end, so it is
+   * not a past read. Mutually exclusive with finishedAt. */
+  abandonedAt: number | null
+  /** Owner-controlled position in the up-next queue, ascending. Only meaningful
+   * while queuedAt is set. */
+  sortOrder: number
 }
 
 /** What the club's next-book recommendation is based on:
@@ -296,6 +304,10 @@ export interface HSClub {
   createdAt: number
   memberCount: number
   currentBook: HSClubBook | null
+  /** Library item ids sitting in this club's up-next queue. Carried on the
+   * summary so a book page can show "In queue" without fetching each club's
+   * full detail. */
+  queuedItemIds: string[]
   /** The basis the owner chose for next-book recommendations. */
   recBasis: ClubRecBasis
 }
@@ -333,6 +345,24 @@ export interface HSClubMember {
   duration: number | null
   isFinished: boolean | null
   listeningNow: boolean
+  /** How far this member has read through the club's book order, for clubs
+   * working a long series where members read ahead. Null when the server has no
+   * ABS db mounted. See HSClubMemberReach. */
+  reach: HSClubMemberReach | null
+}
+
+/** A member's furthest point in the club's ordered book list (past reads, then
+ * the current book, then the up-next queue). `index` is 0-based into that list
+ * and `total` is its length, so the UI can say "book 5 of 12". `libraryItemId`
+ * and `title` identify the furthest book the member has started or finished.
+ * `aheadOfClub` is true when that book sits after the club's current book. */
+export interface HSClubMemberReach {
+  index: number
+  total: number
+  libraryItemId: string
+  title: string
+  isFinished: boolean
+  aheadOfClub: boolean
 }
 
 /** GET /hs/clubs response: the caller's clubs and open clubs joinable for an
@@ -351,8 +381,8 @@ export interface HSClubDetail {
   enabled: boolean
   club: HSClub
   books: HSClubBook[]
-  /** Books lined up to read next, ordered oldest-queued first. The owner
-   * promotes the front of this list to become the current book. */
+  /** Books lined up to read next, in the owner's chosen order (sortOrder, then
+   * queuedAt). The owner promotes any of these to become the current book. */
   queue: HSClubBook[]
   members: HSClubMember[]
   notes: {

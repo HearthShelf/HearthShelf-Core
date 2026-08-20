@@ -5,7 +5,9 @@
 import type {
   HSNote,
   HSNoteStub,
+  HSClubBook,
   HSClubMember,
+  HSClubMemberReach,
   TimelineMarker,
   ClubRecBasis,
   ClubRecPick,
@@ -149,6 +151,83 @@ export function sortMembersByProgress(members: HSClubMember[]): HSClubMember[] {
       return a.i - b.i // stable
     })
     .map((x) => x.m)
+}
+
+/**
+ * The club's books in reading order: past reads (oldest first), then the
+ * current book, then the up-next queue in the owner's chosen order. Books the
+ * club set aside keep their place in the history by startedAt but are not the
+ * pace-setter. This single ordering backs both the "book 5 of 12" reach labels
+ * and the queue's move up/down, so server and client never disagree on it.
+ */
+export function clubBookOrder(books: HSClubBook[], queue: HSClubBook[]): HSClubBook[] {
+  const history = books
+    .slice()
+    .sort((a, b) => {
+      // The current book (neither finished nor set aside) always sorts last in
+      // history; among the rest, oldest start first.
+      const terminal = (x: HSClubBook): number =>
+        x.finishedAt == null && x.abandonedAt == null ? 1 : 0
+      const ta = terminal(a)
+      const tb = terminal(b)
+      if (ta !== tb) return ta - tb
+      return a.startedAt - b.startedAt
+    })
+  return [...history, ...sortClubQueue(queue)]
+}
+
+/**
+ * The up-next queue in the owner's order: sortOrder ascending, falling back to
+ * queuedAt for rows written before ordering existed (both default to the same
+ * relative order for a queue nobody has reordered).
+ */
+export function sortClubQueue(queue: HSClubBook[]): HSClubBook[] {
+  return queue
+    .map((b, i) => ({ b, i }))
+    .sort((a, b) => {
+      if (a.b.sortOrder !== b.b.sortOrder) return a.b.sortOrder - b.b.sortOrder
+      const qa = a.b.queuedAt ?? 0
+      const qb = b.b.queuedAt ?? 0
+      if (qa !== qb) return qa - qb
+      return a.i - b.i // stable
+    })
+    .map((x) => x.b)
+}
+
+/**
+ * How far a member has reached through the club's book order, given their
+ * per-book progress. A book counts as reached when the member has finished it
+ * or has any listening position in it; the reach is the LAST such book in club
+ * order, so a member dipping into book 9 early still reads as being at book 9.
+ * Returns null when no book has been reached (or progress is unknown), which the
+ * UI renders as no reach badge rather than "book 1 of 12".
+ */
+export function memberReach(
+  order: HSClubBook[],
+  progressByItem: Map<string, { currentTime: number | null; isFinished: boolean | null }>,
+  clubCurrentItemId: string,
+): HSClubMemberReach | null {
+  const total = order.length
+  if (!total) return null
+  const clubIndex = order.findIndex((b) => b.libraryItemId === clubCurrentItemId)
+  let found = -1
+  for (let i = 0; i < total; i++) {
+    const pr = progressByItem.get(order[i].libraryItemId)
+    if (!pr) continue
+    const started = pr.isFinished === true || (pr.currentTime != null && pr.currentTime > 0)
+    if (started) found = i
+  }
+  if (found < 0) return null
+  const book = order[found]
+  const pr = progressByItem.get(book.libraryItemId)
+  return {
+    index: found,
+    total,
+    libraryItemId: book.libraryItemId,
+    title: book.title,
+    isFinished: pr?.isFinished === true,
+    aheadOfClub: clubIndex >= 0 && found > clubIndex,
+  }
 }
 
 /** Input item for clusterTimelineMarkers: an unlocked note (kind 'note', with
