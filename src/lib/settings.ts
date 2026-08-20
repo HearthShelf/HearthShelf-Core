@@ -142,6 +142,7 @@ const DEFAULT_NAV_ITEMS: Array<{ key: string; placement: string }> = [
   { key: 'history', placement: 'menu' },
   { key: 'collections', placement: 'menu' },
   { key: 'playlists', placement: 'menu' },
+  { key: 'clubs', placement: 'menu' },
   { key: 'settings', placement: 'menu' },
   { key: 'server-settings', placement: 'menu' },
 ]
