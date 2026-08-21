@@ -25,6 +25,8 @@ export const DEFAULT_NOTIFY_PREFS: HSNotifyPrefs = {
     },
     mention: { enabled: true },
     clubInvite: { enabled: true },
+    reaction: { enabled: true },
+    reply: { enabled: true },
   },
   countdownWindowDays: 14,
 }
@@ -93,6 +95,8 @@ export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
   const release = (t.release ?? {}) as Partial<HSNotifyPrefs['types']['release']>
   const mention = (t.mention ?? {}) as Partial<HSNotifyPrefs['types']['mention']>
   const invite = (t.clubInvite ?? {}) as Partial<HSNotifyPrefs['types']['clubInvite']>
+  const reaction = (t.reaction ?? {}) as Partial<HSNotifyPrefs['types']['reaction']>
+  const reply = (t.reply ?? {}) as Partial<HSNotifyPrefs['types']['reply']>
   const reminder = Number(release.reminderDaysBefore)
   return {
     global,
@@ -113,6 +117,14 @@ export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
       clubInvite: {
         enabled: bool(invite.enabled, d.types.clubInvite.enabled),
         channels: overrideOf(invite.channels),
+      },
+      reaction: {
+        enabled: bool(reaction.enabled, d.types.reaction.enabled),
+        channels: overrideOf(reaction.channels),
+      },
+      reply: {
+        enabled: bool(reply.enabled, d.types.reply.enabled),
+        channels: overrideOf(reply.channels),
       },
     },
     countdownWindowDays: clampCountdownWindow(Number(v.countdownWindowDays)),

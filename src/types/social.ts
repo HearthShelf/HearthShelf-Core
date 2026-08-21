@@ -250,6 +250,36 @@ export interface HSNote {
   createdAt: number
   /** Club members addressed with @. Absent/empty when the note mentions nobody. */
   mentions?: HSNoteMention[]
+  /** Reaction tallies, one entry per kind that has at least one reactor.
+   *  Absent/empty when nobody has reacted. */
+  reactions?: HSNoteReaction[]
+}
+
+/** The reactions a note can carry.
+ *
+ * Stored as a string kind rather than a boolean "liked" so the set can grow
+ * without a schema change or a migration: today the clients only offer 'up',
+ * but 'heart' and 'laugh' are already valid to store and render. An unknown
+ * kind from a newer client is kept and counted, never dropped - it simply has
+ * no icon on an older one. */
+export type NoteReactionKind = 'up' | 'heart' | 'laugh'
+
+/** Every reaction kind a client may offer, in display order. */
+export const NOTE_REACTION_KINDS: NoteReactionKind[] = ['up', 'heart', 'laugh']
+
+/** One kind's tally on a note. `mine` is whether the calling user is among the
+ *  reactors, so a client never has to fetch the reactor list to render state. */
+export interface HSNoteReaction {
+  kind: NoteReactionKind
+  count: number
+  mine: boolean
+}
+
+/** POST /hs/notes/:id/reactions body. Toggling is explicit rather than implied,
+ *  so a double-tap that races itself converges instead of flipping twice. */
+export interface HSNoteReactionBody {
+  kind: NoteReactionKind
+  on: boolean
 }
 
 /** Anonymous stub for a locked ahead-note: id + timestamp only, no body/author/
