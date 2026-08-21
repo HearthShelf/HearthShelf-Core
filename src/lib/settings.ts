@@ -139,11 +139,15 @@ const DEFAULT_NAV_ITEMS: Array<{ key: string; placement: string }> = [
   { key: 'discover', placement: 'menu' },
   { key: 'questgiver', placement: 'menu' },
   { key: 'following', placement: 'menu' },
-  { key: 'downloads', placement: 'menu' },
+  { key: 'clubs', placement: 'menu' },
   { key: 'history', placement: 'menu' },
   { key: 'collections', placement: 'menu' },
   { key: 'playlists', placement: 'menu' },
-  { key: 'clubs', placement: 'menu' },
+  // Downloads defaults to hidden: the same screen is reachable at
+  // Settings > Storage, so shipping it in the menu duplicated a destination.
+  // Still available - clients let the reader drag it back, and a saved
+  // arrangement is applied before this default fills in the gaps.
+  { key: 'downloads', placement: 'hidden' },
   { key: 'settings', placement: 'menu' },
   { key: 'server-settings', placement: 'menu' },
 ]
