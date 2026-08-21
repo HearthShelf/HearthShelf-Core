@@ -7,20 +7,62 @@
 
 import type { HSAudibleSeriesBook } from '../types/hs'
 
+// Collapse punctuation/casing/whitespace so two spellings of the same words
+// compare equal. Shared tail of every title normalization here.
+function squash(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '') // strip punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Strip a leading "<series name>:" / "<series name> -" prefix, keeping the part
+// that actually names the book. Audible titles a series entry either way -
+// "Viridian Gate Online: Doom Forge" or bare "Darkling Siege" - and ABS stores
+// whichever the file's metadata carried, so the prefix has to come off both
+// sides for them to meet. Returns '' when the title is nothing but the series
+// name, which tells the caller there's no distinguishing text to match on.
+function stripSeriesPrefix(title: string, series: string): string {
+  const wantedSeries = squash(series)
+  if (!wantedSeries) return title
+  // Split on the separators a series prefix uses, longest prefix first, so
+  // "A: B: C" can shed "A" and keep "B: C".
+  const parts = title.split(/\s*[:–—-]\s+/)
+  for (let i = parts.length - 1; i >= 1; i--) {
+    if (squash(parts.slice(0, i).join(' ')) === wantedSeries) return parts.slice(i).join(': ')
+  }
+  return squash(title) === wantedSeries ? '' : title
+}
+
 // Normalize a book title for cross-catalog matching. ABS and Audible format the
 // same title differently (subtitles, ", Book 4" suffixes, punctuation, spacing),
 // which used to make owned books look unowned. Strip a trailing series/volume
 // suffix, drop everything after a colon (subtitle), remove punctuation, and
 // collapse whitespace so "Taken to the Stars, Book 4" and "Taken to the Stars"
 // compare equal.
-export function normalizeTitle(title: string | null | undefined): string {
-  return (title ?? '')
-    .toLowerCase()
-    .replace(/:\s.*$/, '') // drop subtitle after a colon
-    .replace(/[,\-–—]?\s*(book|volume|vol|part|#)\s*\d+(\.\d+)?\s*$/i, '') // trailing "Book 4"
-    .replace(/[^\p{L}\p{N}\s]/gu, '') // strip punctuation
-    .replace(/\s+/g, ' ')
-    .trim()
+//
+// Pass `series` whenever the series is known. Dropping the subtitle is only safe
+// when the title's HEAD is the distinguishing part; in a series whose books are
+// all titled "<Series>: <Book Name>", the subtitle IS the book name and dropping
+// it normalizes every entry to the same string - so every owned book matches
+// every roster entry and the matcher hands out claims at random. With `series`
+// supplied, the series prefix comes off first and the remainder is kept whole,
+// so "Viridian Gate Online: Doom Forge" -> "doom forge" and matches Audible's
+// bare "Doom Forge". A title that is ONLY the series name keeps its old
+// behaviour (there's nothing else to match on).
+export function normalizeTitle(
+  title: string | null | undefined,
+  series?: string | null | undefined,
+): string {
+  const raw = title ?? ''
+  const stripped = series ? stripSeriesPrefix(raw, series) : raw
+  const base = stripped || raw
+  return squash(
+    base
+      .replace(/:\s.*$/, '') // drop subtitle after a colon
+      .replace(/[,\-–—]?\s*(book|volume|vol|part|#)\s*\d+(\.\d+)?\s*$/i, ''), // trailing "Book 4"
+  )
 }
 
 // Audible's placeholder date for an announced-but-unscheduled product. Real
@@ -43,7 +85,10 @@ export function isIgnoredRosterBook(
 // neither a narrator nor a runtime, because none of that was known when the
 // book was announced. A real dated book, even a year out, has all three.
 export function isPlaceholderBook(
-  book: Pick<HSAudibleSeriesBook, 'releaseDate' | 'publicationDatetime' | 'narrator' | 'durationMinutes'>,
+  book: Pick<
+    HSAudibleSeriesBook,
+    'releaseDate' | 'publicationDatetime' | 'narrator' | 'durationMinutes'
+  >,
 ): boolean {
   const rel = book.releaseDate ?? book.publicationDatetime ?? ''
   if (!rel.startsWith(PLACEHOLDER_RELEASE_YEAR)) return false
@@ -69,6 +114,46 @@ export function isPhantomRosterBook(
   return books.some((b) => b !== book && seqKey(b.sequence) === slot && !isPlaceholderBook(b))
 }
 
+// How much a roster entry tells us - the tiebreak when two editions of one book
+// are both real products. Owned wins outright (it's the copy the user has), then
+// the entry carrying the most metadata, since a re-issue usually lists a cover,
+// narrator, and runtime while the delisted original has been stripped back.
+function editionScore(b: HSAudibleSeriesBook): number {
+  return (
+    (b.owned ? 8 : 0) + (b.coverArtUrl ? 4 : 0) + (b.durationMinutes ? 2 : 0) + (b.narrator ? 1 : 0)
+  )
+}
+
+// Collapse re-issues of the SAME book to one entry.
+//
+// A book that changed publisher is listed twice in a series, under two ASINs,
+// usually with the author spelled differently each time ("James Hunter" vs
+// "James A. Hunter"). Both are real products, so the placeholder rule above
+// doesn't touch them, and the series then shows the same book twice - once
+// per edition - which also inflates the "missing" count and the series total.
+//
+// Two entries are the same book when they share a sequence AND normalize to the
+// same title. Requiring both keeps genuinely distinct books apart: a novella at
+// 3.5 keeps its own slot, and an unsequenced side story is never folded into
+// another (an entry with no parseable sequence is always left alone).
+function dedupeEditions(books: readonly HSAudibleSeriesBook[], series?: string | null) {
+  const best = new Map<string, HSAudibleSeriesBook>()
+  for (const b of books) {
+    const slot = seqKey(b.sequence)
+    if (!slot) continue
+    const key = `${slot}|${normalizeTitle(b.title, series)}`
+    const cur = best.get(key)
+    if (!cur || editionScore(b) > editionScore(cur)) best.set(key, b)
+  }
+  return (b: HSAudibleSeriesBook) => {
+    const slot = seqKey(b.sequence)
+    if (!slot) return true
+    const key = `${slot}|${normalizeTitle(b.title, series)}`
+    const winner = best.get(key)
+    return !winner || winner === b
+  }
+}
+
 // The roster as the user should actually see it: superseded placeholders gone,
 // and anything they've explicitly ignored gone too. Every consumer of a series
 // roster should read it through this.
@@ -77,18 +162,23 @@ export function isPhantomRosterBook(
 // side story, a print edition, a box set. Audible lists them as series children,
 // but counting them makes a series permanently incompletable. Matching is
 // case-insensitive because ASIN casing varies across Audible responses.
+//
+// Re-issued editions of one book are collapsed to a single entry too
+// (dedupeEditions).
 export function realRosterBooks(
   books: readonly HSAudibleSeriesBook[],
   ignoredAsins?: readonly string[],
+  series?: string | null,
 ): HSAudibleSeriesBook[] {
   const ignored = ignoredAsins?.length
     ? new Set(ignoredAsins.map((a) => String(a).toLowerCase()))
     : null
-  return books.filter(
+  const notIgnored = books.filter(
     (b) =>
       !isPhantomRosterBook(b, books) &&
       !(ignored && b.asin && ignored.has(String(b.asin).toLowerCase())),
   )
+  return notIgnored.filter(dedupeEditions(notIgnored, series))
 }
 
 // A number key for a series sequence ("4", "2.5", "#4 ") -> "4"/"2.5", or '' when
@@ -159,19 +249,20 @@ function claim(
 function unflagOwned(
   titled: readonly HSAudibleSeriesBook[],
   ownedBooks: readonly OwnedSeriesBook[],
+  series?: string | null,
 ): HSAudibleSeriesBook[] {
   const byTitle = new Map<string, Claimable[]>()
   for (const b of ownedBooks) {
-    const title = normalizeTitle(b.title)
+    const title = normalizeTitle(b.title, series)
     push(byTitle, title, { used: false, title })
   }
   for (const b of titled) {
-    if (b.owned !== false) claim(byTitle, normalizeTitle(b.title))
+    if (b.owned !== false) claim(byTitle, normalizeTitle(b.title, series))
   }
   const missing: HSAudibleSeriesBook[] = []
   for (const b of titled) {
     if (b.owned !== false) continue
-    if (!claim(byTitle, normalizeTitle(b.title))) missing.push(b)
+    if (!claim(byTitle, normalizeTitle(b.title, series))) missing.push(b)
   }
   return missing
 }
@@ -198,12 +289,15 @@ export function missingSeriesBooks(
   audibleBooksRaw: readonly HSAudibleSeriesBook[],
   ownedBooks: readonly OwnedSeriesBook[],
   ignoredAsins?: readonly string[],
+  // The series' name. Supplied, titles are matched on the part that DISTINGUISHES
+  // the book rather than the shared "<Series>:" prefix - see normalizeTitle.
+  series?: string | null,
 ): HSAudibleSeriesBook[] {
   // Drop Audible's phantom placeholders first: they duplicate a real product's
   // sequence, and being coverless and narrator-less they can never match an
   // owned book, so they'd always surface as spurious "missing" rows. Books the
   // user has ignored go with them - they are not a gap to be filled.
-  const audibleBooks = realRosterBooks(audibleBooksRaw, ignoredAsins)
+  const audibleBooks = realRosterBooks(audibleBooksRaw, ignoredAsins, series)
 
   const bySequence = (a: HSAudibleSeriesBook, b: HSAudibleSeriesBook) =>
     (parseFloat(a.sequence ?? '') || 0) - (parseFloat(b.sequence ?? '') || 0)
@@ -212,13 +306,13 @@ export function missingSeriesBooks(
 
   // Server-provided owned flags are authoritative when present on any book.
   if (audibleBooks.some((b) => typeof b.owned === 'boolean')) {
-    return unflagOwned(titled, ownedBooks).sort(bySequence)
+    return unflagOwned(titled, ownedBooks, series).sort(bySequence)
   }
 
   const byTitle = new Map<string, Claimable[]>()
   const bySeq = new Map<string, Claimable[]>()
   for (const b of ownedBooks) {
-    const entry: Claimable = { used: false, title: normalizeTitle(b.title) }
+    const entry: Claimable = { used: false, title: normalizeTitle(b.title, series) }
     push(byTitle, entry.title, entry)
     push(bySeq, seqKey(b.sequence), entry)
   }
@@ -227,11 +321,11 @@ export function missingSeriesBooks(
   // an owned book ahead of a mere same-slot sequence match.
   const owned = new Set<HSAudibleSeriesBook>()
   for (const b of titled) {
-    if (claim(byTitle, normalizeTitle(b.title))) owned.add(b)
+    if (claim(byTitle, normalizeTitle(b.title, series))) owned.add(b)
   }
   for (const b of titled) {
     if (owned.has(b)) continue
-    const rosterTitle = normalizeTitle(b.title)
+    const rosterTitle = normalizeTitle(b.title, series)
     // Only accept a same-slot owned book whose title doesn't contradict this one.
     const compatible = (e: Claimable) => !e.title || !rosterTitle || e.title === rosterTitle
     if (claim(bySeq, seqKey(b.sequence), compatible)) owned.add(b)
