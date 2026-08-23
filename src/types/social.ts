@@ -3,6 +3,8 @@
 // backend. `available` is false when ABS's db isn't mapped, so the UI hides it.
 // Design doc: HearthShelf docs/social.md.
 
+import type { NoteReactionKind } from '../lib/noteReactions.ts'
+
 export interface HSLeaderboardEntry {
   rank: number
   userId: string
@@ -257,15 +259,14 @@ export interface HSNote {
 
 /** The reactions a note can carry.
  *
- * Stored as a string kind rather than a boolean "liked" so the set can grow
- * without a schema change or a migration: today the clients only offer 'up',
- * but 'heart' and 'laugh' are already valid to store and render. An unknown
- * kind from a newer client is kept and counted, never dropped - it simply has
- * no icon on an older one. */
-export type NoteReactionKind = 'up' | 'heart' | 'laugh'
-
-/** Every reaction kind a client may offer, in display order. */
-export const NOTE_REACTION_KINDS: NoteReactionKind[] = ['up', 'heart', 'laugh']
+ * A kind is EITHER a raw emoji or one of three legacy names ('up' | 'heart' |
+ * 'laugh') stored before reactions accepted emoji. New reactions always store
+ * the emoji itself, so the kind IS the glyph and any client can render any
+ * reaction without a lookup table.
+ *
+ * See lib/noteReactions.ts for validation, normalization, and the glyph/label
+ * helpers that keep the legacy names rendering. */
+export type { NoteReactionKind }
 
 /** One kind's tally on a note. `mine` is whether the calling user is among the
  *  reactors, so a client never has to fetch the reactor list to render state. */
