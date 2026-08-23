@@ -580,7 +580,7 @@ export type NotifyChannel = 'inApp' | 'push' | 'email'
 /** What a notification can be about. Adding a kind here (plus an entry in
  *  HSNotifyPrefs['types'] and DEFAULT_NOTIFY_PREFS) is the whole cost of a new
  *  notification category - there is no per-key settings-catalog churn. */
-export type NotifyType = 'release' | 'mention' | 'clubInvite' | 'reaction' | 'reply'
+export type NotifyType = 'release' | 'mention' | 'clubInvite' | 'reaction' | 'reply' | 'rating'
 
 export interface NotifyChannels {
   inApp: boolean
@@ -626,6 +626,10 @@ export interface HSNotifyPrefs {
     /** Someone replied to one of your club comments. A reply you can already
      *  see is the only kind that notifies - see the spoiler note on delivery. */
     reply: NotifyTypePrefs
+    /** "How was it?" after you finish a book. In-app only by default: it is a
+     *  invitation to reflect, not news, so it should be waiting for you when you
+     *  next open the app rather than buzzing the phone the moment a book ends. */
+    rating: NotifyTypePrefs
   }
   /** How many days out a followed book starts showing on the Home countdown
    *  banner. 1-30, default 14. Not a notification, but it has always been

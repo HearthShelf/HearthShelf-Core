@@ -27,6 +27,12 @@ export const DEFAULT_NOTIFY_PREFS: HSNotifyPrefs = {
     clubInvite: { enabled: true },
     reaction: { enabled: true },
     reply: { enabled: true },
+    // In-app only. A finished book is a prompt to reflect, not news that decays,
+    // so it waits in the tray instead of buzzing the phone the moment a book
+    // ends - which, for a listener who fell asleep to it, is the worst moment.
+    // The channels override is explicit rather than inherited: this is the one
+    // type whose quietness is the product decision, not the user's global one.
+    rating: { enabled: true, channels: { inApp: true, push: false, email: false } },
   },
   countdownWindowDays: 14,
 }
@@ -97,6 +103,7 @@ export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
   const invite = (t.clubInvite ?? {}) as Partial<HSNotifyPrefs['types']['clubInvite']>
   const reaction = (t.reaction ?? {}) as Partial<HSNotifyPrefs['types']['reaction']>
   const reply = (t.reply ?? {}) as Partial<HSNotifyPrefs['types']['reply']>
+  const rating = (t.rating ?? {}) as Partial<HSNotifyPrefs['types']['rating']>
   const reminder = Number(release.reminderDaysBefore)
   return {
     global,
@@ -125,6 +132,14 @@ export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
       reply: {
         enabled: bool(reply.enabled, d.types.reply.enabled),
         channels: overrideOf(reply.channels),
+      },
+      rating: {
+        enabled: bool(rating.enabled, d.types.rating.enabled),
+        // Falls back to the default's quiet override (not `undefined`) when the
+        // stored value has none, so a client that saved prefs before rating
+        // notifications existed does not silently inherit `global` and start
+        // pushing rating prompts to the phone.
+        channels: overrideOf(rating.channels) ?? d.types.rating.channels,
       },
     },
     countdownWindowDays: clampCountdownWindow(Number(v.countdownWindowDays)),
