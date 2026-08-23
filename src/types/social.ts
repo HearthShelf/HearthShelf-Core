@@ -222,7 +222,8 @@ export interface HSListeningNowBulkResponse {
 export type NoteVisibility = 'club' | 'public' | 'personal'
 
 /** A club, public, or personal note. clubId '' for public/personal; parentId ''
- * = top-level (a reply gates at its PARENT's timeSec); timeSec null = general
+ * = top-level (a reply always gates at its parent and may add its own explicit
+ * position gate); timeSec null = general
  * (ungated) note. `safe` = author-declared spoiler-free, so it bypasses the
  * position gate and shows to everyone regardless of playback position (still
  * carries timeSec for the scrubber marker). `safe` applies only to top-level
@@ -248,8 +249,13 @@ export interface HSNote {
   parentId: string
   timeSec: number | null
   safe: boolean
+  /** Author-marked spoiler text. This is a visual reveal affordance and is
+   * independent of the playback-position gate controlled by `safe`/timeSec. */
+  spoiler: boolean
   body: string
   createdAt: number
+  /** ms epoch of the latest edit, or null when the note has never been edited. */
+  updatedAt: number | null
   /** Club members addressed with @. Absent/empty when the note mentions nobody. */
   mentions?: HSNoteMention[]
   /** Reaction tallies, one entry per kind that has at least one reactor.
@@ -274,6 +280,19 @@ export interface HSNoteReaction {
   kind: NoteReactionKind
   count: number
   mine: boolean
+}
+
+/** One reader listed in the reaction-detail tray. */
+export interface HSNoteReactionUser {
+  userId: string
+  username: string
+  reactedAt: number
+}
+
+/** The readers behind one reaction kind. */
+export interface HSNoteReactionDetail {
+  kind: NoteReactionKind
+  users: HSNoteReactionUser[]
 }
 
 /** POST /hs/notes/:id/reactions body. Toggling is explicit rather than implied,
@@ -337,15 +356,23 @@ export interface HSClubBook {
  * Only the owner sets it; default is club-history. See docs/social.md. */
 export type ClubRecBasis = 'off' | 'club-history' | 'all-members-finished'
 
+/** Who can discover and join a book club. Closed clubs are invite-only; public
+ * clubs appear in the server-wide directory and can be joined directly. */
+export type ClubVisibility = 'closed' | 'public'
+
 /** A club summary. currentBook is the one book with finishedAt null, or null if
  * the club has no current book. */
 export interface HSClub {
   id: string
   name: string
   createdBy: string
+  visibility: ClubVisibility
+  /** @deprecated Prefer visibility. Kept while older clients migrate. */
   isOpen: boolean
   archived: boolean
   createdAt: number
+  /** Most recent book or discussion activity. */
+  lastActivityAt: number
   memberCount: number
   currentBook: HSClubBook | null
   /** Library item ids sitting in this club's up-next queue. Carried on the
@@ -354,6 +381,10 @@ export interface HSClub {
   queuedItemIds: string[]
   /** The basis the owner chose for next-book recommendations. */
   recBasis: ClubRecBasis
+  /** Club policy: members may revise their own comments and spoiler flag. */
+  allowCommentEditing: boolean
+  /** Club policy: members may reply to top-level comments. */
+  allowReplies: boolean
 }
 
 /** One recommended next book for a club, resolved to a real library item so the
@@ -409,8 +440,9 @@ export interface HSClubMemberReach {
   aheadOfClub: boolean
 }
 
-/** GET /hs/clubs response: the caller's clubs and open clubs joinable for an
- * item (joinable = open clubs whose current book is that item). */
+/** GET /hs/clubs response: the caller's clubs and public clubs they can join.
+ * With libraryItemId, joinable is narrowed to clubs currently reading it;
+ * `directory=1` requests the server-wide public directory. */
 export interface HSClubsResponse {
   enabled: boolean
   mine: HSClub[]

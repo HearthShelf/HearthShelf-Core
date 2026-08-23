@@ -21,9 +21,10 @@ import type {
  * A note is visible iff it is safe (author-declared spoiler-free), its timeSec
  * is null (general), timeSec <= position, its author is the caller, or the book
  * is finished. A reply (parentId != '') gates at its PARENT's timeSec, found
- * within the same list; a reply whose parent is not visible is not visible
- * (replies never inherit the parent's `safe` flag - only the parent's time
- * gate). positionSec null means "no position known" (only safe / ungated / own
+ * within the same list; a reply whose parent is not visible is not visible.
+ * A reply may also carry its own explicitly attached position, and then BOTH
+ * the parent gate and the reply's own gate must pass. positionSec null means
+ * "no position known" (only safe / ungated / own
  * / finished notes show). Returns the visible notes plus the count hidden ahead.
  */
 export function gateNotes(
@@ -60,11 +61,13 @@ export function gateNotes(
         result = true
       } else {
         const parent = byId.get(n.parentId)
-        result = parent
+        const parentPasses = parent
           ? parent.safe ||
             parent.timeSec == null ||
             (positionSec != null && parent.timeSec <= positionSec)
           : false
+        const replyPasses = n.timeSec == null || (positionSec != null && n.timeSec <= positionSec)
+        result = parentPasses && replyPasses
       }
     } else {
       result = passesOwn(n)
