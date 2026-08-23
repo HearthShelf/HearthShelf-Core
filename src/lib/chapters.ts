@@ -1,0 +1,202 @@
+// Bulk chapter-title editing for the book editor.
+//
+// Ripped audiobooks routinely arrive with the numbering off by the amount of
+// front matter: "Intro" is 1, "Forward" is 2, so the real Chapter 1 is titled
+// "Chapter 3". Fixing that by hand is dozens of edits, so the editor offers
+// three bulk operations over a selected subset of rows. All of them are pure
+// title rewrites - start/end times are never touched, so a bulk edit can never
+// desync a chapter from its audio.
+//
+// Every operation takes the full row list plus the indices to act on and
+// returns a new list, so the caller stages the result and the user previews it
+// before saving.
+
+/** The number token found inside a chapter title. */
+export interface ParsedChapterNumber {
+  /** The numeric value, e.g. 3 for "Chapter 03". */
+  value: number
+  /** The text before the number, e.g. 'Chapter ' for "Chapter 03: Dawn". */
+  prefix: string
+  /** The text after the number, e.g. ': Dawn' for "Chapter 03: Dawn". */
+  suffix: string
+  /** How many digits the number was written with, so 03 can stay zero-padded. */
+  digits: number
+}
+
+// The first run of digits in the title. Deliberately the *first* run: a title
+// like "Chapter 3: The 7 Gates" numbers on 3, not 7. Roman numerals and spelled
+// numbers ("Chapter Three") are not detected - they round-trip untouched rather
+// than being mangled by a guess.
+const NUMBER_RE = /\d+/
+
+/** Pull the number out of a chapter title, or null when it has none. */
+export function parseChapterNumber(title: string): ParsedChapterNumber | null {
+  const m = NUMBER_RE.exec(title)
+  if (!m) return null
+  const raw = m[0]
+  return {
+    value: Number(raw),
+    prefix: title.slice(0, m.index),
+    suffix: title.slice(m.index + raw.length),
+    digits: raw.length,
+  }
+}
+
+/** Render a number with at least `digits` characters, zero-padded. */
+export function padNumber(value: number, digits: number): string {
+  const s = String(Math.abs(Math.trunc(value)))
+  const padded = s.length >= digits ? s : '0'.repeat(digits - s.length) + s
+  return value < 0 ? '-' + padded : padded
+}
+
+/**
+ * Expand a title pattern for one row.
+ *
+ * `{n}` is the sequence number. `{n:2}` pads it to two digits ("01"). `{t}` is
+ * the row's existing title, so a pattern can wrap rather than replace it.
+ */
+export function formatChapterTitle(pattern: string, n: number, existingTitle: string): string {
+  return pattern.replace(/\{(n|t)(?::(\d+))?\}/g, (_all, token: string, width?: string) => {
+    if (token === 't') return existingTitle
+    return padNumber(n, width ? Number(width) : 1)
+  })
+}
+
+/** Rewrite the selected rows to `pattern`, numbering them from `startAt`. */
+export function renumberChapters<T extends { title: string }>(
+  rows: readonly T[],
+  selected: readonly number[],
+  pattern: string,
+  startAt: number,
+): T[] {
+  const order = [...new Set(selected)].sort((a, b) => a - b)
+  const seq = new Map<number, number>()
+  order.forEach((rowIndex, i) => seq.set(rowIndex, startAt + i))
+  return rows.map((row, i) => {
+    const n = seq.get(i)
+    if (n === undefined) return row
+    return { ...row, title: formatChapterTitle(pattern, n, row.title) }
+  })
+}
+
+/**
+ * Shift the number already inside each selected title by `delta`, leaving the
+ * surrounding text and zero-padding alone. Rows with no number are untouched.
+ *
+ * This is the surgical alternative to renumbering: it fixes "Chapter 3" ->
+ * "Chapter 1" without discarding a subtitle the way a pattern would.
+ */
+export function shiftChapterNumbers<T extends { title: string }>(
+  rows: readonly T[],
+  selected: readonly number[],
+  delta: number,
+): T[] {
+  const set = new Set(selected)
+  return rows.map((row, i) => {
+    if (!set.has(i)) return row
+    const parsed = parseChapterNumber(row.title)
+    if (!parsed) return row
+    const next = parsed.value + delta
+    if (next < 0) return row
+    return { ...row, title: parsed.prefix + padNumber(next, parsed.digits) + parsed.suffix }
+  })
+}
+
+/**
+ * Rewrite each selected title into `pattern`, reusing the number the title
+ * already carries rather than a running sequence. Rows with no number keep
+ * their title, so "Intro" survives a normalize pass over the whole book.
+ */
+export function normalizeChapterNumbers<T extends { title: string }>(
+  rows: readonly T[],
+  selected: readonly number[],
+  pattern: string,
+): T[] {
+  const set = new Set(selected)
+  return rows.map((row, i) => {
+    if (!set.has(i)) return row
+    const parsed = parseChapterNumber(row.title)
+    if (!parsed) return row
+    return { ...row, title: formatChapterTitle(pattern, parsed.value, row.title) }
+  })
+}
+
+export interface ReplaceOptions {
+  /** Treat `find` as a regular expression rather than literal text. */
+  regex?: boolean
+  /** Match case-sensitively. Defaults to insensitive, which is what a typo fix wants. */
+  matchCase?: boolean
+}
+
+/** Escape a string so it matches literally inside a RegExp. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Build the RegExp for a find-and-replace, or null when `find` is empty or is
+ * an invalid pattern the user is still typing. Exposed so the UI can show the
+ * "not a valid pattern" state without duplicating the construction.
+ */
+export function buildReplaceRegExp(find: string, opts: ReplaceOptions = {}): RegExp | null {
+  if (!find) return null
+  const flags = opts.matchCase ? 'g' : 'gi'
+  try {
+    return new RegExp(opts.regex ? find : escapeRegExp(find), flags)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Find and replace across the selected titles. With `regex`, `replace` may use
+ * `$1`-style backreferences. An invalid pattern is a no-op rather than a throw.
+ */
+export function replaceInChapterTitles<T extends { title: string }>(
+  rows: readonly T[],
+  selected: readonly number[],
+  find: string,
+  replace: string,
+  opts: ReplaceOptions = {},
+): T[] {
+  const re = buildReplaceRegExp(find, opts)
+  if (!re) return rows as T[]
+  const set = new Set(selected)
+  return rows.map((row, i) => {
+    if (!set.has(i)) return row
+    const title = row.title.replace(re, replace)
+    return title === row.title ? row : { ...row, title }
+  })
+}
+
+/** How many of the selected rows a find-and-replace would actually change. */
+export function countReplaceMatches(
+  rows: readonly { title: string }[],
+  selected: readonly number[],
+  find: string,
+  replace: string,
+  opts: ReplaceOptions = {},
+): number {
+  const re = buildReplaceRegExp(find, opts)
+  if (!re) return 0
+  const set = new Set(selected)
+  let n = 0
+  rows.forEach((row, i) => {
+    if (!set.has(i)) return
+    re.lastIndex = 0
+    if (row.title.replace(re, replace) !== row.title) n += 1
+  })
+  return n
+}
+
+/**
+ * The indices a shift-click range select covers, given the row clicked last
+ * (the anchor) and the row clicked now.
+ */
+export function selectionRange(anchor: number, index: number): number[] {
+  const lo = Math.min(anchor, index)
+  const hi = Math.max(anchor, index)
+  const out: number[] = []
+  for (let i = lo; i <= hi; i += 1) out.push(i)
+  return out
+}
