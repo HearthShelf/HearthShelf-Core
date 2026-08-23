@@ -79,26 +79,58 @@ export function renumberChapters<T extends { title: string }>(
   })
 }
 
+/** The lowest number a shift may produce. Chapter 0 is not a chapter. */
+export const MIN_CHAPTER_NUMBER = 1
+
+/**
+ * How far `delta` may go down before some selected title would fall below
+ * MIN_CHAPTER_NUMBER, or null when no selected row carries a number.
+ *
+ * The UI uses this to explain the limit instead of letting a shift half-apply.
+ */
+export function minShiftDelta(
+  rows: readonly { title: string }[],
+  selected: readonly number[],
+): number | null {
+  const set = new Set(selected)
+  let lowest: number | null = null
+  rows.forEach((row, i) => {
+    if (!set.has(i)) return
+    const parsed = parseChapterNumber(row.title)
+    if (!parsed) return
+    if (lowest === null || parsed.value < lowest) lowest = parsed.value
+  })
+  return lowest === null ? null : MIN_CHAPTER_NUMBER - lowest
+}
+
 /**
  * Shift the number already inside each selected title by `delta`, leaving the
  * surrounding text and zero-padding alone. Rows with no number are untouched.
  *
  * This is the surgical alternative to renumbering: it fixes "Chapter 3" ->
  * "Chapter 1" without discarding a subtitle the way a pattern would.
+ *
+ * All-or-nothing: if the shift would push any selected chapter below
+ * MIN_CHAPTER_NUMBER the rows are returned unchanged, because half-applying it
+ * silently leaves a book numbered part old and part new - far worse than
+ * refusing and saying why.
  */
 export function shiftChapterNumbers<T extends { title: string }>(
   rows: readonly T[],
   selected: readonly number[],
   delta: number,
 ): T[] {
+  const floor = minShiftDelta(rows, selected)
+  if (floor !== null && delta < floor) return rows as T[]
   const set = new Set(selected)
   return rows.map((row, i) => {
     if (!set.has(i)) return row
     const parsed = parseChapterNumber(row.title)
     if (!parsed) return row
-    const next = parsed.value + delta
-    if (next < 0) return row
-    return { ...row, title: parsed.prefix + padNumber(next, parsed.digits) + parsed.suffix }
+    return {
+      ...row,
+      title: parsed.prefix + padNumber(parsed.value + delta, parsed.digits) + parsed.suffix,
+    }
   })
 }
 
