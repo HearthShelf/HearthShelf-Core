@@ -427,6 +427,7 @@ export interface HSIntegrationsEnvLocks {
   audplexusUrl: boolean
   audplexusKey: boolean
   audibleRegion: boolean
+  audibleEnabled: boolean
 }
 
 /** GET/PUT /hs/integrations/config response. Never leaks secrets. */
@@ -438,6 +439,12 @@ export interface HSIntegrationsConfig {
   audplexusConfigured: boolean
   audplexusHasKey: boolean
   audibleRegion: HSAudibleRegion
+  /** Whether the server may call Audible's public catalog API at all. Opt-OUT:
+   *  true unless an admin turned it off, so existing installs are unchanged.
+   *  When false the /hs/audible/* routes answer as if the catalog were empty and
+   *  the nightly series-roster sweep is skipped - so no upcoming books, missing
+   *  books, or countdowns, and series progress is owned-only. */
+  audibleEnabled: boolean
   validRegions: HSAudibleRegion[]
   env: HSIntegrationsEnvLocks
 }
@@ -450,6 +457,7 @@ export interface HSIntegrationsPatch {
   audplexusUrl?: string | null // null or '' clears the stored URL
   audplexusKey?: string | null
   audibleRegion?: HSAudibleRegion
+  audibleEnabled?: boolean
 }
 
 // --- Audible catalog search (/hs/audible/*) -------------------------------
