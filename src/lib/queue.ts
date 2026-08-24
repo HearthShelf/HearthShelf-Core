@@ -2,7 +2,7 @@
 // up-next list from the same rules. No I/O, no store access.
 
 import type { ABSLibraryItem, ABSMediaProgress, ABSSeries } from '../types/abs'
-import type { AutoRuleId, AutoRulePref, QueueEntry } from '../types/queue'
+import type { AutoRuleId, AutoRulePref, QueueBookClubRef, QueueEntry } from '../types/queue'
 
 // Default Auto-mode rule order (= priority). 'manual' sits last on purpose:
 // Auto's suggestions play first, and the user's hand-queued list is what comes
@@ -89,7 +89,21 @@ export function buildAutoQueue({
   const seriesOf = (id: string) => series.filter((s) => s.books.some((b) => b.id === id))
 
   const collected: QueueEntry[] = []
-  const seen = new Set<string>()
+  const collectedById = new Map<string, QueueEntry>()
+  const mergeBookClubs = (
+    existing: QueueBookClubRef[] | undefined,
+    incoming: QueueBookClubRef[] | undefined,
+  ): QueueBookClubRef[] | undefined => {
+    if (!incoming?.length) return existing
+    const merged = [...(existing ?? [])]
+    const seenClubIds = new Set(merged.map((club) => club.id))
+    for (const club of incoming) {
+      if (!club.id || seenClubIds.has(club.id)) continue
+      seenClubIds.add(club.id)
+      merged.push({ id: club.id, name: club.name })
+    }
+    return merged.length ? merged : undefined
+  }
   // Push a library-item id. `fallback` supplies title/author for ids not in the
   // library list (club books), so they still produce a usable entry. Returns
   // true if it actually added an entry (so callers can count real additions,
@@ -101,9 +115,18 @@ export function buildAutoQueue({
     if (dismissedItems.has(id)) return false
     const item = itemById.get(id)
     if (!item && !fallback) return false
-    if (seen.has(id)) return false
-    seen.add(id)
-    collected.push(item ? entryOf(item) : (fallback as QueueEntry))
+    const existing = collectedById.get(id)
+    if (existing) {
+      // First rule still owns this book's queue position, but later rules may
+      // add useful context. In particular, a Finish-series match must retain
+      // the club badge when Book-club reaches the same item later.
+      existing.bookClubs = mergeBookClubs(existing.bookClubs, fallback?.bookClubs)
+      return false
+    }
+    const entry = item ? entryOf(item) : ({ ...fallback } as QueueEntry)
+    entry.bookClubs = mergeBookClubs(entry.bookClubs, fallback?.bookClubs)
+    collectedById.set(id, entry)
+    collected.push(entry)
     return true
   }
 
@@ -169,7 +192,7 @@ export function buildAutoQueue({
       // they queue even if they aren't in this library's item list.
       for (const b of clubBooks) push(b.libraryItemId, b)
     } else if (id === 'manual') {
-      // The user's hand-queued list, in their order. De-dupe (via push/seen)
+      // The user's hand-queued list, in their order. De-dupe (via push)
       // means a book an earlier rule already surfaced won't queue twice - the
       // manual list acts as a fallback for whatever the other rules didn't add.
       for (const b of manualBooks) push(b.libraryItemId, b)

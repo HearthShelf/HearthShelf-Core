@@ -3,10 +3,21 @@
 // in HearthShelf); mode + auto-rules are user preferences and ride along in
 // the existing settings sync instead.
 
+/** Compact social context carried with a queue item. A book can belong to more
+ * than one club, so queue de-duplication merges these refs instead of letting
+ * whichever Auto rule ran first erase the later book-club match. */
+export interface QueueBookClubRef {
+  id: string
+  name: string
+}
+
 export interface QueueEntry {
   libraryItemId: string
   title: string
   author: string
+  /** Clubs that currently associate this book with their reading timeline or
+   * Up Next queue. Optional for older stored queues and hand-added entries. */
+  bookClubs?: QueueBookClubRef[]
 }
 
 // Per-user "no interest" ignores: series and individual books the user does not
