@@ -54,12 +54,28 @@ const DEFAULT_RULE_ON = new Map(DEFAULT_AUTO_RULES.map((r) => [r.id, r.on] as co
  */
 export function normalizeAutoRules(stored: unknown): AutoRulePref[] {
   const arr = Array.isArray(stored) ? (stored as AutoRulePref[]) : []
-  const byId = new Map(
-    arr
-      .filter((r) => r && AUTO_RULE_IDS.includes(r.id) && typeof r.on === 'boolean')
-      .map((r) => [r.id, r] as const),
-  )
-  return AUTO_RULE_IDS.map((id) => byId.get(id) ?? { id, on: DEFAULT_RULE_ON.get(id) ?? true })
+  const normalized: AutoRulePref[] = []
+  const seen = new Set<AutoRuleId>()
+  // Preserve the user's stored order. The previous map + AUTO_RULE_IDS.map()
+  // kept on/off values but rebuilt canonical order on every hydrate/server pull,
+  // so devices could sync the same array and still display different priorities.
+  for (const rule of arr) {
+    if (
+      !rule ||
+      !AUTO_RULE_IDS.includes(rule.id) ||
+      typeof rule.on !== 'boolean' ||
+      seen.has(rule.id)
+    ) {
+      continue
+    }
+    seen.add(rule.id)
+    normalized.push({ id: rule.id, on: rule.on })
+  }
+  // New rules still append in canonical order at their intended default.
+  for (const id of AUTO_RULE_IDS) {
+    if (!seen.has(id)) normalized.push({ id, on: DEFAULT_RULE_ON.get(id) ?? true })
+  }
+  return normalized
 }
 
 // True if v is a valid queueAutoRules array: entries of { id: AutoRuleId, on }.
@@ -331,7 +347,7 @@ const DEFS: SettingDef[] = [
     scope: 'account',
     type: 'json',
     validate: isAutoRules,
-    default: AUTO_RULE_IDS.map((id) => ({ id, on: true })),
+    default: DEFAULT_AUTO_RULES.map((rule) => ({ ...rule })),
   },
 
   // --- Library & home (account) ---
