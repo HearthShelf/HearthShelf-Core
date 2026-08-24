@@ -385,6 +385,11 @@ export interface HSClub {
   allowCommentEditing: boolean
   /** Club policy: members may reply to top-level comments. */
   allowReplies: boolean
+  /** Club policy: when everyone who started the current book has finished it,
+   * the club moves on by itself - the book becomes a past read and the first
+   * up-next book is promoted. With an empty queue the club simply ends up with
+   * no current book. Members who never started the book do not hold it up. */
+  autoAdvanceOnAllFinished: boolean
 }
 
 /** One recommended next book for a club, resolved to a real library item so the
