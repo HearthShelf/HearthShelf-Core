@@ -15,6 +15,13 @@ export interface QueueEntry {
   libraryItemId: string
   title: string
   author: string
+  /** The book's runtime in seconds, snapshotted when the entry was built, so a
+   * queue can report how long it runs without a per-book lookup. Optional: it
+   * is absent on entries stored before this field existed, and on books that
+   * are not in the caller's library list (an out-of-library club pick knows
+   * only its title/author snapshot). Treat a missing value as unknown, not
+   * zero - a total built from these is a floor whenever any entry lacks it. */
+  duration?: number
   /** Clubs that currently associate this book with their reading timeline or
    * Up Next queue. Optional for older stored queues and hand-added entries. */
   bookClubs?: QueueBookClubRef[]

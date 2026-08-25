@@ -56,6 +56,10 @@ function entryOf(item: ABSLibraryItem): QueueEntry {
     libraryItemId: item.id,
     title: m.title ?? 'Untitled',
     author: m.authorName ?? '',
+    // Snapshotted so a queue can total its runtime with no per-book lookup.
+    // The minified list shape carries this; omit it rather than storing 0 when
+    // it is missing, so an unknown length stays distinguishable from a zero one.
+    duration: item.media.duration || undefined,
   }
 }
 
@@ -206,4 +210,52 @@ export function buildAutoQueue({
  * (its own optimistic local state vs. what the server just returned). */
 export function resolveQueueConflict<T extends { updatedAt: number }>(local: T, remote: T): T {
   return remote.updatedAt >= local.updatedAt ? remote : local
+}
+
+// --- Queue length ------------------------------------------------------------
+// How many books a queue holds and how long they run, for the "12 Books -
+// 3d 04h 12m" line on the up-next headers. Lives here so mobile and both web
+// UIs read the same totals and format them identically.
+
+export interface QueueLength {
+  books: number
+  /** Summed seconds of the entries whose duration is known. */
+  seconds: number
+  /** True when at least one entry has no duration, so `seconds` is a floor.
+   *  Entries stored before duration existed, and out-of-library club picks,
+   *  both land here. */
+  partial: boolean
+}
+
+export function queueLength(entries: readonly QueueEntry[]): QueueLength {
+  let seconds = 0
+  let partial = false
+  for (const e of entries) {
+    if (e.duration) seconds += e.duration
+    else partial = true
+  }
+  return { books: entries.length, seconds, partial }
+}
+
+/** "3d 04h 12m" / "14h 17m" / "42m". Days appear only once there are any, and
+ *  hours/minutes are zero-padded after a day so the line keeps a steady width
+ *  as a queue grows and shrinks. */
+export function formatQueueLength(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds))
+  const days = Math.floor(total / 86400)
+  const hours = Math.floor((total % 86400) / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  if (days > 0) return `${days}d ${pad(hours)}h ${pad(minutes)}m`
+  if (hours > 0) return `${hours}h ${pad(minutes)}m`
+  return `${minutes}m`
+}
+
+/** The whole header line: "12 Books - 3d 04h 12m". A total that is still
+ *  missing a book's length reads "3d 04h 12m+" rather than understating. */
+export function queueLengthLabel(entries: readonly QueueEntry[]): string {
+  const { books, seconds, partial } = queueLength(entries)
+  const count = `${books} ${books === 1 ? 'Book' : 'Books'}`
+  if (seconds <= 0) return count
+  return `${count} - ${formatQueueLength(seconds)}${partial ? '+' : ''}`
 }
