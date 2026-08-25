@@ -33,6 +33,7 @@ export const DEFAULT_NOTIFY_PREFS: HSNotifyPrefs = {
     // The channels override is explicit rather than inherited: this is the one
     // type whose quietness is the product decision, not the user's global one.
     rating: { enabled: true, channels: { inApp: true, push: false, email: false } },
+    lateNote: { enabled: true },
   },
   countdownWindowDays: 14,
 }
@@ -104,6 +105,7 @@ export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
   const reaction = (t.reaction ?? {}) as Partial<HSNotifyPrefs['types']['reaction']>
   const reply = (t.reply ?? {}) as Partial<HSNotifyPrefs['types']['reply']>
   const rating = (t.rating ?? {}) as Partial<HSNotifyPrefs['types']['rating']>
+  const lateNote = (t.lateNote ?? {}) as Partial<HSNotifyPrefs['types']['lateNote']>
   const reminder = Number(release.reminderDaysBefore)
   return {
     global,
@@ -140,6 +142,10 @@ export function normalizeNotifyPrefs(raw: unknown): HSNotifyPrefs {
         // notifications existed does not silently inherit `global` and start
         // pushing rating prompts to the phone.
         channels: overrideOf(rating.channels) ?? d.types.rating.channels,
+      },
+      lateNote: {
+        enabled: bool(lateNote.enabled, d.types.lateNote.enabled),
+        channels: overrideOf(lateNote.channels),
       },
     },
     countdownWindowDays: clampCountdownWindow(Number(v.countdownWindowDays)),

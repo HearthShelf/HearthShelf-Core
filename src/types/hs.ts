@@ -588,7 +588,8 @@ export type NotifyChannel = 'inApp' | 'push' | 'email'
 /** What a notification can be about. Adding a kind here (plus an entry in
  *  HSNotifyPrefs['types'] and DEFAULT_NOTIFY_PREFS) is the whole cost of a new
  *  notification category - there is no per-key settings-catalog churn. */
-export type NotifyType = 'release' | 'mention' | 'clubInvite' | 'reaction' | 'reply' | 'rating'
+export type NotifyType =
+  'release' | 'mention' | 'clubInvite' | 'reaction' | 'reply' | 'rating' | 'lateNote'
 
 export interface NotifyChannels {
   inApp: boolean
@@ -638,6 +639,12 @@ export interface HSNotifyPrefs {
      *  invitation to reflect, not news, so it should be waiting for you when you
      *  next open the app rather than buzzing the phone the moment a book ends. */
     rating: NotifyTypePrefs
+    /** Someone commented at a point you have ALREADY listened past. The normal
+     *  note-pop can never fire for these - it only triggers as playback crosses
+     *  a timestamp, so a comment posted behind you is silently invisible. This
+     *  is the only way you learn about it. Spoiler-safe by construction: you
+     *  have already heard that part. */
+    lateNote: NotifyTypePrefs
   }
   /** How many days out a followed book starts showing on the Home countdown
    *  banner. 1-30, default 14. Not a notification, but it has always been
