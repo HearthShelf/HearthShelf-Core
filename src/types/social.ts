@@ -347,6 +347,11 @@ export interface HSClubBook {
   /** Owner-controlled position in the up-next queue, ascending. Only meaningful
    * while queuedAt is set. */
   sortOrder: number
+  /** Book length in seconds, snapshotted when the book was added to the club so
+   * an up-next header can total the queue without a lookup per book. Absent on
+   * rows added before this was stored, and on picks whose length could not be
+   * read - callers treat a missing length as unknown, not zero. */
+  duration?: number
 }
 
 /** What the club's next-book recommendation is based on:
