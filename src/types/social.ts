@@ -302,11 +302,23 @@ export interface HSNoteReactionBody {
   on: boolean
 }
 
-/** Anonymous stub for a locked ahead-note: id + timestamp only, no body/author/
- * date. Powers timeline ticks and club pops without leaking spoilers. */
+/** Stub for a comment the caller may not read: never carries a body.
+ *
+ * In the SPOILER gate (a note ahead of where you are listening) the stub is
+ * fully anonymous - id + timestamp only - because naming the author of a note
+ * you have not reached is itself a small spoiler.
+ *
+ * In a PUBLIC CLUB PREVIEW (you are not a member) the author fields are set:
+ * the whole discussion is withheld regardless of position, so "who is talking
+ * in here" is exactly the signal someone needs to decide whether to join, and
+ * it gives away nothing about the book. */
 export interface HSNoteStub {
   id: string
   timeSec: number
+  /** Preview stubs only; absent on anonymous spoiler-gate stubs. */
+  userId?: string
+  username?: string
+  createdAt?: number
 }
 
 /** GET /hs/notes response: unlocked notes, locked stubs (club scope only),
@@ -462,7 +474,10 @@ export interface HSClubsResponse {
 /** GET /hs/clubs/:id response: the club, its book history (current + finished,
  * ordered by startedAt), the up-next queue (ordered by queuedAt), members with
  * progress in the viewed book, that book's notes (gated), and the unread count.
- * locked stubs are only present for the current book. */
+ * locked stubs are only present for the current book.
+ *
+ * A non-member calling this on a PUBLIC club gets a preview: everything above
+ * except the discussion (see isMember). A closed club still refuses. */
 export interface HSClubDetail {
   enabled: boolean
   club: HSClub
@@ -477,6 +492,12 @@ export interface HSClubDetail {
     hiddenAhead: number
   }
   unreadCount: number
+  /** False when the caller is previewing a public club they have not joined.
+   * In that case notes.notes is ALWAYS empty and every comment arrives as a
+   * body-less stub in notes.locked - the server never sends the discussion to a
+   * non-member, so there is nothing for a client to accidentally reveal. Older
+   * servers omit this; treat a missing value as true (members-only response). */
+  isMember?: boolean
 }
 
 // --- Timeline markers (shared player scrubber) ---
