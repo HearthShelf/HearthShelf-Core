@@ -26,13 +26,24 @@ function squash(title: string): string {
 function stripSeriesPrefix(title: string, series: string): string {
   const wantedSeries = squash(series)
   if (!wantedSeries) return title
+  // The prefix often carries the volume number too - Audible titles the same
+  // series both "Federation Marine: Recruit" and "Federation Marine 2:
+  // Sergeant". Matching the series name alone left the numbered form unstripped,
+  // and the subtitle-drop fallback in normalizeTitle then kept the PREFIX and
+  // threw away the book name: "Federation Marine 2: Sergeant" -> "federation
+  // marine 2" instead of "sergeant". Every numbered entry got a title no owned
+  // copy could match, and because a sequence claim is refused when the titles
+  // disagree, books the user owned were reported missing.
+  const matchesSeries = (candidate: string) =>
+    candidate === wantedSeries ||
+    candidate.replace(/\s*(book|volume|vol|part|#)?\s*\d+(\.\d+)?$/, '').trim() === wantedSeries
   // Split on the separators a series prefix uses, longest prefix first, so
   // "A: B: C" can shed "A" and keep "B: C".
   const parts = title.split(/\s*[:–—-]\s+/)
   for (let i = parts.length - 1; i >= 1; i--) {
-    if (squash(parts.slice(0, i).join(' ')) === wantedSeries) return parts.slice(i).join(': ')
+    if (matchesSeries(squash(parts.slice(0, i).join(' ')))) return parts.slice(i).join(': ')
   }
-  return squash(title) === wantedSeries ? '' : title
+  return matchesSeries(squash(title)) ? '' : title
 }
 
 // Normalize a book title for cross-catalog matching. ABS and Audible format the
