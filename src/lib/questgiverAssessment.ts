@@ -63,6 +63,30 @@ export function qgBookTarget(item: ABSLibraryItem | ABSLibraryItemDetail): QgAss
   }
 }
 
+/**
+ * Build a target from already-flattened book fields, for clients whose detail
+ * endpoint does not hand back a raw ABSLibraryItem (the hosted web app's
+ * BookDetailFull and mobile's detail shape). Same output as qgBookTarget - the
+ * genre splitting and hour rounding are shared - so every surface judges the
+ * same book identically.
+ */
+export function qgBookTargetFromFields(fields: {
+  id: string
+  title: string
+  author: string
+  genres: string[]
+  durationSec: number
+}): QgAssessmentTarget {
+  return {
+    kind: 'book',
+    title: fields.title || 'Untitled',
+    author: fields.author || '',
+    genres: unique((fields.genres ?? []).flatMap((genre) => genre.split(','))),
+    hours: fields.durationSec ? Math.round((fields.durationSec / 3600) * 10) / 10 : 0,
+    itemIds: [fields.id],
+  }
+}
+
 export function qgSeriesTarget(title: string, books: ABSLibraryItem[]): QgAssessmentTarget {
   const targets = books.map(qgBookTarget)
   const hours = targets.filter((target) => target.hours > 0)
