@@ -48,10 +48,30 @@ export interface CompletionThresholds {
   timeRemainingSec: number
   /**
    * A trailing chapter this short or shorter is treated as credits/outro rather
-   * than content - reaching it means the book is done. Default 60s (the
-   * "end credits are less than a minute" case).
+   * than content - reaching it means the book is done. Default 180s (3 min).
+   *
+   * Kept conservative on purpose: this rule runs on duration alone, and a real
+   * final chapter can be short. Long end matter is handled by
+   * `lastChapterIsEndMatter` instead, which is a deliberate user choice rather
+   * than a guess from length.
    */
   creditsChapterMaxSec: number
+  /**
+   * Treat the FINAL chapter as end matter no matter how long it runs, then keep
+   * walking backwards through preceding chapters with `creditsChapterMaxSec`.
+   *
+   * Publishers pack credits, bloopers, author interviews and next-book previews
+   * into one trailing track, and its length is unpredictable: The Dungeon
+   * Anarchist's Cookbook ends in a single 7m38s "End Credits" chapter that is
+   * credits and bloopers together. No duration threshold separates that from a
+   * real 8-minute final chapter, so this is opt-in rather than inferred.
+   *
+   * The cost of enabling it is that a book whose last chapter is genuine story
+   * counts as finished on reaching that chapter. For most audiobooks the last
+   * chapter IS end matter, which is why the clients default this on - but it is
+   * the reason this is a switch and not a constant.
+   */
+  lastChapterIsEndMatter: boolean
   /**
    * Stopping this close to the end of the last real chapter counts as finishing
    * it. Covers "paused 2 seconds from the end". Default 15s.
@@ -67,7 +87,8 @@ export interface CompletionThresholds {
 
 export const DEFAULT_COMPLETION_THRESHOLDS: CompletionThresholds = {
   timeRemainingSec: 10,
-  creditsChapterMaxSec: 60,
+  creditsChapterMaxSec: 180,
+  lastChapterIsEndMatter: false,
   chapterEndGraceSec: 15,
   percentComplete: null,
 }
@@ -112,11 +133,28 @@ export interface CompletionResult {
  * Guards against a book made entirely of short chapters (some collections of
  * very short stories): if every chapter would qualify, none do.
  */
-function trailingThrowawayStart(chapters: CompletionChapter[], maxSec: number): number | null {
+function trailingThrowawayStart(
+  chapters: CompletionChapter[],
+  maxSec: number,
+  lastChapterIsEndMatter = false,
+): number | null {
+  // A book that is ALL short chapters (a short-story collection, a poetry
+  // reading) has no end matter to find - every chapter would qualify and we
+  // would call the book done on reaching its last story. Decided up front, from
+  // duration alone, so the lastChapterIsEndMatter exemption below cannot
+  // manufacture a "real" chapter that isn't there.
+  const anyRealChapter = chapters.some((c) => c.end - c.start > maxSec)
+  if (!anyRealChapter) return null
+
   let i = chapters.length - 1
+  // The final chapter is end matter by the listener's choice, whatever its
+  // length - the credits+bloopers track no threshold can safely size. Only the
+  // LAST one gets this pass; everything before it must still earn its way in on
+  // duration, so the exemption can't cascade backwards through real chapters.
+  if (lastChapterIsEndMatter && i >= 0) i--
   while (i >= 0 && chapters[i].end - chapters[i].start <= maxSec) i--
   // i now points at the last real chapter (-1 if there wasn't one).
-  if (i < 0) return null // all chapters short - don't treat any as credits
+  if (i < 0) return null // nothing real ahead of the tail - leave it alone
   if (i === chapters.length - 1) return null // last chapter is real content
   return chapters[i + 1].start
 }
@@ -147,7 +185,11 @@ export function evaluateCompletion(input: CompletionInput): CompletionResult {
   if (duration - currentTime <= t.timeRemainingSec) return finished('time-remaining')
 
   if (chapters.length > 0) {
-    const throwawayStart = trailingThrowawayStart(chapters, t.creditsChapterMaxSec)
+    const throwawayStart = trailingThrowawayStart(
+      chapters,
+      t.creditsChapterMaxSec,
+      t.lastChapterIsEndMatter,
+    )
 
     // 3. Reached the trailing credits/outro run - the content is over.
     if (throwawayStart !== null && currentTime >= throwawayStart) {

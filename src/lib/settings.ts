@@ -317,6 +317,28 @@ const DEFS: SettingDef[] = [
   // space. Applies to any download (manual or auto). Account-scoped so the
   // choice follows the user across devices. On by default.
   { key: 'removeDownloadOnFinish', scope: 'account', type: 'boolean', default: true },
+  // How much audio may be left when you move on from a book and still have it
+  // count as finished. Audiobooks routinely end in material people don't listen
+  // to (a publisher outro, an Audible credits track), so stopping 30 seconds
+  // short is the norm rather than the exception - without this those books sit
+  // at 99% forever. Seconds, not a percentage: end matter is a roughly fixed
+  // length, so a percentage would be far too small on a long book and far too
+  // large on a short one. 0 disables it.
+  {
+    key: 'finishBufferSec',
+    scope: 'account',
+    type: 'number',
+    min: 0,
+    max: 300,
+    int: true,
+    default: 60,
+  },
+  // Treat the final chapter as end matter (credits, bloopers, an author
+  // interview) whatever its length, so moving on once the story itself is over
+  // counts as finished. Without it only chapters under a few minutes are
+  // absorbed, and publishers routinely ship one long combined credits track -
+  // see lastChapterIsEndMatter in lib/completion.ts.
+  { key: 'finishSkipEndMatter', scope: 'account', type: 'boolean', default: true },
 
   // --- Cover display (account) - mobile ---
   {
