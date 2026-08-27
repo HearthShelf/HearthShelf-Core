@@ -122,7 +122,7 @@ function hoursOf(item: ABSLibraryItem): number {
 // Build the QgBook view of the library, merging in progress.
 export function qgBooks(
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>,
+  progressById: ReadonlyMap<string, ABSMediaProgress>,
 ): QgBook[] {
   return items.map((it) => {
     const p = progressById.get(it.id)

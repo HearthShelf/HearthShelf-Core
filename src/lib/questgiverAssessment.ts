@@ -105,7 +105,7 @@ export function qgSeriesTarget(title: string, books: ABSLibraryItem[]): QgAssess
 export function qgAssessmentContext(
   target: QgAssessmentTarget,
   items: ABSLibraryItem[],
-  progressById: Map<string, ABSMediaProgress>,
+  progressById: ReadonlyMap<string, ABSMediaProgress>,
 ): QgAssessmentContext {
   const excluded = new Set(target.itemIds)
   const history = qgBooks(
