@@ -111,17 +111,31 @@ export function isPlaceholderBook(
 // share a sequence, so the series showed the same book twice - once properly,
 // once as a coverless row with a mangled author ("Zogarth .").
 //
-// A placeholder is only dropped when a REAL product occupies the same sequence.
-// Standing alone it is the only record of a genuinely upcoming book (announced,
-// not yet scheduled), and dropping it erased that book from the series entirely
-// - which is what happened to System Universe book 9.
+// A SEQUENCED placeholder is dropped only when a real product occupies its
+// sequence. Standing alone it is the only record of a genuinely upcoming book
+// (announced, not yet scheduled), and dropping it erased that book from the
+// series entirely - which is what happened to System Universe book 9.
+//
+// An UNSEQUENCED placeholder is always dropped. Audible carries a tail of
+// announced-only stubs that were never given a position in the series - side
+// stories, shorts, working titles that may never ship - and with no sequence
+// there is nothing to place them against: they cannot supersede or be
+// superseded, they sort to the end, and every one of them counts as a book the
+// user is "missing" from a series they may well have finished. Federation
+// Marine carries five (Bolo Mission, Weaponized Math, ...), which turned a
+// 14-book series into 20 and left it permanently incompletable.
+//
+// The two cases are safely distinguishable precisely BECAUSE a real upcoming
+// book gets a sequence: System Universe 9 is sequence "9" and survives this,
+// while the Federation Marine stubs carry none. Verified against both live
+// rosters.
 export function isPhantomRosterBook(
   book: HSAudibleSeriesBook,
   books: readonly HSAudibleSeriesBook[],
 ): boolean {
   if (!isPlaceholderBook(book)) return false
   const slot = seqKey(book.sequence)
-  if (!slot) return false
+  if (!slot) return true
   return books.some((b) => b !== book && seqKey(b.sequence) === slot && !isPlaceholderBook(b))
 }
 
