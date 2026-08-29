@@ -315,13 +315,17 @@ export interface HSNoteReactionBody {
 export interface HSNoteStub {
   id: string
   timeSec: number
+  /** Set on a locked REPLY, so a client can nest the placeholder under the
+   *  stub for its parent instead of listing it as its own thread. */
+  parentId?: string
   /** Preview stubs only; absent on anonymous spoiler-gate stubs. */
   userId?: string
   username?: string
   createdAt?: number
 }
 
-/** GET /hs/notes response: unlocked notes, locked stubs (club scope only),
+/** GET /hs/notes response: unlocked notes, locked stubs (anonymous placeholders
+ * for ahead-of-position comments and their replies),
  * hiddenAhead count, and the server clock for pop timing. */
 export interface HSNotesResponse {
   enabled: boolean
