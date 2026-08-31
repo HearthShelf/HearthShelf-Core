@@ -143,10 +143,21 @@ export function minShiftDelta(
  * silently leaves a book numbered part old and part new - far worse than
  * refusing and saying why.
  */
+export interface ShiftOptions {
+  /**
+   * Drop zero-padding instead of keeping it, so "Chapter 007" becomes
+   * "Chapter 8" rather than "Chapter 008". Off by default: padding that was
+   * deliberate is usually wanted, and a rip that pads every chapter is only
+   * sometimes wrong about it.
+   */
+  stripPadding?: boolean
+}
+
 export function shiftChapterNumbers<T extends { title: string }>(
   rows: readonly T[],
   selected: readonly number[],
   delta: number,
+  opts: ShiftOptions = {},
 ): T[] {
   const floor = minShiftDelta(rows, selected)
   if (floor !== null && delta < floor) return rows as T[]
@@ -158,7 +169,11 @@ export function shiftChapterNumbers<T extends { title: string }>(
     // Preserve zero-padding only where it was deliberate. "Chapter 007" stays
     // three wide, but "Chapter 220" shifted down is "Chapter 1", not
     // "Chapter 001" - the old width was the size of the number, not a format.
-    const width = parsed.digits > String(parsed.value).length ? parsed.digits : 1
+    const width = opts.stripPadding
+      ? 1
+      : parsed.digits > String(parsed.value).length
+        ? parsed.digits
+        : 1
     return {
       ...row,
       title: parsed.prefix + padNumber(parsed.value + delta, width) + parsed.suffix,
