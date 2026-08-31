@@ -49,15 +49,43 @@ export function padNumber(value: number, digits: number): string {
   return value < 0 ? '-' + padded : padded
 }
 
+// A separator sitting between the number and the name: ": ", " - ", ". ", or
+// plain whitespace. Stripped so `Chapter {n}: {name}` composes without the
+// user having to notice the old title's punctuation.
+const LEADING_SEPARATOR_RE = /^[\s]*[:.–—-]?[\s]*/
+
+// A half-chapter letter glued to the number: the "a" of "Chapter 220a". Part
+// of the numbering, not the name, so stripping the number strips it too.
+const HALF_CHAPTER_RE = /^[a-z](?=$|[\s:.–—-])/i
+
+/**
+ * The chapter's name with its number and the separator after it removed, so
+ * "Chapter 220: The 19th Floor Boss" gives "The 19th Floor Boss".
+ *
+ * A title with no number is its own name - "Opening Credits" survives a
+ * rewrite that reuses this. When stripping would leave nothing, as in a bare
+ * "Chapter 12", the result is empty rather than the original: the caller asked
+ * for the name, and that title has none.
+ */
+export function stripChapterNumber(title: string): string {
+  const parsed = parseChapterNumber(title)
+  if (!parsed) return title.trim()
+  return parsed.suffix.replace(HALF_CHAPTER_RE, '').replace(LEADING_SEPARATOR_RE, '').trim()
+}
+
 /**
  * Expand a title pattern for one row.
  *
- * `{n}` is the sequence number. `{n:2}` pads it to two digits ("01"). `{t}` is
- * the row's existing title, so a pattern can wrap rather than replace it.
+ * `{n}` is the sequence number and `{n:2}` pads it to two digits ("01"). `{t}`
+ * is the row's whole existing title. `{name}` is that title with its old
+ * number stripped, which is what renumbering a named chapter almost always
+ * wants: `Chapter {n}: {name}` turns "Chapter 220: Dawn" into "Chapter 1: Dawn"
+ * where `{t}` would have kept the stale 220.
  */
 export function formatChapterTitle(pattern: string, n: number, existingTitle: string): string {
-  return pattern.replace(/\{(n|t)(?::(\d+))?\}/g, (_all, token: string, width?: string) => {
+  return pattern.replace(/\{(n|t|name)(?::(\d+))?\}/g, (_all, token: string, width?: string) => {
     if (token === 't') return existingTitle
+    if (token === 'name') return stripChapterNumber(existingTitle)
     return padNumber(n, width ? Number(width) : 1)
   })
 }
@@ -127,9 +155,13 @@ export function shiftChapterNumbers<T extends { title: string }>(
     if (!set.has(i)) return row
     const parsed = parseChapterNumber(row.title)
     if (!parsed) return row
+    // Preserve zero-padding only where it was deliberate. "Chapter 007" stays
+    // three wide, but "Chapter 220" shifted down is "Chapter 1", not
+    // "Chapter 001" - the old width was the size of the number, not a format.
+    const width = parsed.digits > String(parsed.value).length ? parsed.digits : 1
     return {
       ...row,
-      title: parsed.prefix + padNumber(parsed.value + delta, parsed.digits) + parsed.suffix,
+      title: parsed.prefix + padNumber(parsed.value + delta, width) + parsed.suffix,
     }
   })
 }
