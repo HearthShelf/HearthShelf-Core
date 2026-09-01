@@ -9,8 +9,8 @@
 // means there is too little history to be worth an AI call) and the fallback
 // when AI is unavailable or errors.
 
-import { qgBooks, qgBuildProfile, type QgBook, type QgProfile } from './questgiver'
-import type { ABSLibraryItem, ABSLibraryItemDetail, ABSMediaProgress } from '../types/abs'
+import { qgBooks, qgBuildProfile, type QgBook, type QgProfile } from './questgiver.ts'
+import type { ABSLibraryItem, ABSLibraryItemDetail, ABSMediaProgress } from '../types/abs.ts'
 
 export type QgAssessmentVerdict = 'strong' | 'good' | 'mixed' | 'unlikely' | 'unknown'
 export type QgAssessmentConfidence = 'high' | 'medium' | 'low'
