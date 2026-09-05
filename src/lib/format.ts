@@ -48,6 +48,13 @@ export function fmtSessDate(ms: number): { day: string; time: string } {
 // cover color, so we derive a deterministic one from a seed (the item id): hash
 // the seed and pick from the HearthShelf cover palette (warm-neutral duotones,
 // never navy/muddy - matching the design system's --chart / cover hues).
+//
+// This is the ONE cover palette for every surface (DESIGN.shared.md, "The One
+// Cover Palette Rule"): a book must be the same colour on web, mobile and in the
+// car. Both the palette and the seed are part of that contract - seeding on the
+// title instead of the item id, or picking from a surface-local tint list, gives
+// the same book two different colours and breaks the connection between
+// surfaces. Never fork this list.
 const COVER_PALETTE = [
   '#356b78', // teal
   '#a8482b', // rust
