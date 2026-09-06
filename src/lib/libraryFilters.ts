@@ -26,11 +26,19 @@ const splitNames = (raw: string | null | undefined): string[] =>
 
 // Categories derived from real ABS metadata. Each values() reads the loaded
 // items so the menu only offers filters that actually match something.
+//
+// Every metadata read here is null-guarded even where the type says it cannot be
+// missing. ABS omits genres, seriesName and narratorName entirely from a
+// `minified=1` response, but the ABSLibraryItem type declares them required - so
+// a client that hands us a minified list gets no type error and an unguarded
+// `.flatMap(i => i.media.metadata.genres)` throws at runtime. Guarding here
+// degrades to an empty filter list instead of a crash; the client still owes us
+// a non-minified fetch if it wants these groups populated.
 export const FILTER_GROUPS: FilterGroup[] = [
   {
     id: 'genres',
     label: 'Genre',
-    values: (items) => uniqSorted(items.flatMap((i) => i.media.metadata.genres)),
+    values: (items) => uniqSorted(items.flatMap((i) => i.media.metadata.genres ?? [])),
   },
   {
     id: 'authors',
@@ -40,12 +48,14 @@ export const FILTER_GROUPS: FilterGroup[] = [
   {
     id: 'narrators',
     label: 'Narrator',
-    values: (items) => uniqSorted(items.flatMap((i) => splitNames(i.media.metadata.narratorName))),
+    values: (items) =>
+      uniqSorted(items.flatMap((i) => splitNames(i.media.metadata.narratorName ?? ''))),
   },
   {
     id: 'series',
     label: 'Series',
-    values: (items) => uniqSorted(items.map((i) => i.media.metadata.seriesName).filter(Boolean)),
+    values: (items) =>
+      uniqSorted(items.map((i) => i.media.metadata.seriesName ?? '').filter(Boolean)),
   },
   {
     id: 'decade',
@@ -140,11 +150,11 @@ export function applyLibraryFilter(
   const [gid, val] = f.split('|')
   switch (gid) {
     case 'genres':
-      return items.filter((b) => b.media.metadata.genres.includes(val))
+      return items.filter((b) => (b.media.metadata.genres ?? []).includes(val))
     case 'authors':
       return items.filter((b) => splitNames(b.media.metadata.authorName).includes(val))
     case 'narrators':
-      return items.filter((b) => splitNames(b.media.metadata.narratorName).includes(val))
+      return items.filter((b) => splitNames(b.media.metadata.narratorName ?? '').includes(val))
     case 'series':
       return items.filter((b) => b.media.metadata.seriesName === val)
     case 'decade':
