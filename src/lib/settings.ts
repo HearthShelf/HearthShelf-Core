@@ -236,6 +236,21 @@ const DEFS: SettingDef[] = [
     values: ['blurred', 'gradient', 'hearth'],
     default: 'blurred',
   },
+  // The book cover shown on the full player. Off hides it entirely (the space
+  // it occupied stays, so the controls don't jump); playerCoverOpacity fades it
+  // toward the background. 100 = fully opaque, the default everywhere except a
+  // hearth background, where the player picks 60 so the art reads through (see
+  // resolvePlayerCoverOpacity).
+  { key: 'playerCover', scope: 'account', type: 'boolean', default: true },
+  {
+    key: 'playerCoverOpacity',
+    scope: 'account',
+    type: 'number',
+    min: 10,
+    max: 100,
+    int: true,
+    default: 100,
+  },
 
   // --- Playback (account) ---
   {
@@ -804,6 +819,24 @@ export function resolveSetting(
   const row = stored[key]
   if (row) return row.value
   return settingDefault(key)
+}
+
+// The player cover's effective opacity (0-1), given the chosen player background
+// and whether the user has actually set playerCoverOpacity. A hearth background
+// is a full-bleed picture, so a cover laid over it reads better semi-transparent:
+// when the user has NOT configured an opacity, hearth resolves to 60% while every
+// other background stays fully opaque. Once the user moves the slider their value
+// wins for every background - hence the 'configured' flag rather than treating
+// the catalog default as 'unset'.
+export const HEARTH_COVER_OPACITY = 60
+
+export function resolvePlayerCoverOpacity(
+  playerBg: string,
+  storedOpacity: number | undefined,
+): number {
+  if (storedOpacity != null) return storedOpacity / 100
+  if (playerBg === 'hearth') return HEARTH_COVER_OPACITY / 100
+  return (settingDefault('playerCoverOpacity') as number) / 100
 }
 
 // Per-key last-writer-wins merge of two stored-settings maps (e.g. local
