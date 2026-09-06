@@ -967,3 +967,23 @@ export interface HSCommunityConfigPatch {
   notesEnabled?: boolean
   clubsEnabled?: boolean
 }
+
+/**
+ * Where a stored profile photo came from, which is what ranks it.
+ *
+ * 'upload' is a deliberate choice by the user and always wins: an 'sso' write
+ * over an existing 'upload' is a no-op, so syncing a provider photo can never
+ * clobber a picture someone picked on purpose.
+ *
+ * 'sso' means copied from whichever identity provider signed the user in. It
+ * was written as the literal string 'clerk' before HearthShelf moved off that
+ * provider; readers MUST still accept 'clerk' because the value is persisted in
+ * the avatars table on self-hosted servers we do not control and cannot
+ * migrate. Writers should only ever emit 'sso'.
+ */
+export type AvatarSource = 'upload' | 'sso'
+
+/** Normalize a stored avatar source, accepting the legacy 'clerk' spelling. */
+export function normalizeAvatarSource(value: unknown): AvatarSource {
+  return value === 'sso' || value === 'clerk' ? 'sso' : 'upload'
+}
