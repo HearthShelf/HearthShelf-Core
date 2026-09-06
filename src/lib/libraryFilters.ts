@@ -86,6 +86,48 @@ export function filterLabel(f: string): string {
   return f.split('|')[1] || 'Filter'
 }
 
+/**
+ * The group name a "group|value" filter belongs to, e.g. "Author" for
+ * "authors|Brandon Sanderson". Empty for flags and "all".
+ *
+ * `filterLabel` deliberately returns only the value, which reads fine inside a
+ * labelled Filter menu but is ambiguous on a standalone chip: "Finished" could
+ * be a progress state or a genre of that name.
+ */
+export function filterGroupLabel(f: string): string {
+  if (f === 'all' || FILTER_FLAGS.some(([id]) => id === f)) return ''
+  const gid = f.split('|')[0]
+  return FILTER_GROUPS.find((g) => g.id === gid)?.label ?? ''
+}
+
+/** "Author: Brandon Sanderson" - a chip that says what it filters on. */
+export function filterChipLabel(f: string): string {
+  const group = filterGroupLabel(f)
+  const value = filterLabel(f)
+  return group ? `${group}: ${value}` : value
+}
+
+/**
+ * Apply several filters at once, ANDed together.
+ *
+ * One active filter is enough for a small shelf, but on a large catalog a
+ * single predicate rarely narrows far enough - a genre alone can still leave
+ * hundreds of books, and the natural next move is combining it with a progress
+ * state. Selecting a second filter used to silently replace the first.
+ *
+ * Ignores "all" so callers may pass a list still holding the neutral value.
+ * Order does not matter; every filter must match.
+ */
+export function applyLibraryFilters(
+  items: ABSLibraryItem[],
+  filters: string[],
+  progressOf: ProgressLookup,
+): ABSLibraryItem[] {
+  return filters
+    .filter((f) => f && f !== 'all')
+    .reduce((acc, f) => applyLibraryFilter(acc, f, progressOf), items)
+}
+
 // Apply a "group|value" (or flag / "all") filter to the item list.
 export function applyLibraryFilter(
   items: ABSLibraryItem[],
