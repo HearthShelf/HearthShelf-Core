@@ -297,6 +297,10 @@ export interface HSFinishedBooksResponse {
  */
 export interface HSCompletion {
   libraryItemId: string
+  /** ABS books.id - the key book_completions is stored under, and the only id a
+   *  correction can be addressed by. The row is otherwise navigated by
+   *  libraryItemId, so both travel. */
+  mediaItemId: string
   title: string
   author: string
   durationSec: number
