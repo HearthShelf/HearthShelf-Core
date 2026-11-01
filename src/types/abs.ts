@@ -125,6 +125,13 @@ export interface ABSBookMetadata {
   // though ABS's own edit form never exposes it. Optional because the minified
   // list endpoints omit it - only the expanded item read carries it.
   publishedDate?: string | null
+  // ABS returns `asin` and `isbn` on BOTH item projections - Book.oldMetadataToJSONMinified()
+  // and Book.oldMetadataToJSON() each include them - so a plain list read carries
+  // them and ownership can be matched by identity instead of by title string (see
+  // lib/ownedMatch.ts). Declared optional because a book whose metadata was never
+  // matched has none, and because ABSBookMetadataDetail re-declares them required.
+  asin?: string | null
+  isbn?: string | null
   description: string | null
   genres: string[]
   language: string | null

@@ -7,6 +7,7 @@
 // real ABS data, using QuestGiver naming throughout.
 
 import type { ABSLibraryItem, ABSMediaProgress } from '../types/abs'
+import { ownedMatchKey } from './ownedMatch.ts'
 
 export interface QgBook {
   id: string
@@ -248,14 +249,19 @@ export interface QgExternalHit {
   hours?: number
 }
 
-// Map external catalog hits to candidates, deduped against owned title|author.
+// Map external catalog hits to candidates, deduped against the owned library.
 // `source: 'request'` distinguishes them from owned library candidates.
+//
+// Ownership goes through ownedMatchKey (see ownedMatch.ts) rather than an exact
+// `title|author`: Audible and ABS format the same book differently, so the exact
+// key recommended books the listener already owned. QgBook carries no ASIN, so
+// this site gets the normalized title+author half only.
 export function qgExternalCandidates(hits: QgExternalHit[], books: QgBook[]): QgCandidate[] {
-  const owned = new Set(books.map((b) => (b.title + '|' + b.author).toLowerCase()))
+  const owned = new Set(books.map((b) => ownedMatchKey(b.title, b.author)))
   const seen = new Set<string>()
   const out: QgCandidate[] = []
   for (const h of hits) {
-    const key = (h.title + '|' + h.author).toLowerCase()
+    const key = ownedMatchKey(h.title, h.author)
     if (!h.title || owned.has(key) || seen.has(key)) continue
     seen.add(key)
     out.push({
@@ -371,6 +377,13 @@ export function qgCraftPrompt(
 // The stable identity of a pick across runs: title|author, lowercased. Feedback
 // is keyed on this, and it is how a repeat recommendation is detected, so every
 // client must derive it the same way.
+//
+// Deliberately NOT ownedMatchKey, despite the identical shape. This value is
+// PERSISTED - stored feedback and prior-run history are keyed on it - so it has
+// to stay byte-stable forever. ownedMatchKey normalizes, and normalization
+// improves over time; routing this through it would silently orphan every stored
+// record the next time a normalizer changed. Ownership comparison and durable
+// identity are different jobs that happen to share a formula.
 export function qgPickKey(title: string, author: string): string {
   return (title + '|' + author).toLowerCase()
 }
