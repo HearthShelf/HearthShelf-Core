@@ -103,7 +103,7 @@ export const READER_DEFAULTS: ReaderPrefs = {
   width: 'medium',
   align: 'left',
   brightness: READER_BRIGHTNESS_MAX,
-  layout: 'scroll',
+  layout: 'paged',
 }
 
 // localStorage / async-storage key for an item's saved reading position (CFI).
