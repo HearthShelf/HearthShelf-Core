@@ -241,6 +241,9 @@ export interface HsRestoreResult {
   ok: boolean
   crossServer?: boolean
   escapeDir?: string
+  /** Archive restores only: which halves were put back. */
+  absRestored?: boolean
+  hsRestored?: boolean
 }
 
 // --- Hosted (/hs/hosted, /hs/runtime) ---------------------------------------
