@@ -2,6 +2,7 @@
 // for every HearthShelf surface (self-hosted web, hosted web, mobile).
 export * from './abs.ts'
 export * from './hs.ts'
+export * from './admin.ts'
 export * from './queue.ts'
 export * from './settings.ts'
 export * from './social.ts'

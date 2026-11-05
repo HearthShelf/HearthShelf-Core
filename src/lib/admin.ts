@@ -61,3 +61,39 @@ function base64Utf8(value: string): string {
 export function encodeNamePathParam(name: string): string {
   return encodeURIComponent(base64Utf8(name))
 }
+
+export type ScannerToggleKey =
+  | 'scannerFindCovers'
+  | 'scannerParseSubtitle'
+  | 'scannerPreferMatchedMetadata'
+  | 'scannerDisableWatcher'
+  | 'storeCoverWithItem'
+
+/** The server-wide scanner switches, in display order. */
+export const SCANNER_TOGGLES: readonly { key: ScannerToggleKey; label: string; desc: string }[] = [
+  {
+    key: 'scannerFindCovers',
+    label: 'Find covers',
+    desc: 'Search for a cover online when an item has none.',
+  },
+  {
+    key: 'scannerParseSubtitle',
+    label: 'Parse subtitles',
+    desc: 'Pull a subtitle from the folder name after a dash.',
+  },
+  {
+    key: 'scannerPreferMatchedMetadata',
+    label: 'Prefer matched metadata',
+    desc: 'Let matched provider data override existing details.',
+  },
+  {
+    key: 'scannerDisableWatcher',
+    label: 'Disable folder watcher',
+    desc: 'Stop scanning automatically when files change on disk.',
+  },
+  {
+    key: 'storeCoverWithItem',
+    label: 'Store covers with item',
+    desc: 'Save the cover alongside the audio files instead of in metadata.',
+  },
+]
