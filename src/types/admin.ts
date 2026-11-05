@@ -36,6 +36,8 @@ export interface ServiceAccountIdsResponse {
 export interface ABSAdminSession {
   id: string
   userId: string
+  /** Present on the server-wide list, absent on one user's own sessions. */
+  user?: { id: string; username: string }
   libraryItemId: string
   displayTitle: string
   displayAuthor: string
@@ -191,7 +193,8 @@ export interface ABSLibraryStatsItem {
 
 export interface ABSLibraryStats {
   totalItems: number
-  totalAuthors: number
+  /** Absent on podcast libraries. */
+  totalAuthors?: number
   totalGenres: number
   totalSize: number
   totalDuration: number

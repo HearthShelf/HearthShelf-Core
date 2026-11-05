@@ -125,18 +125,20 @@ export interface BulkUserValues {
   permissions: ABSUserPermissions
 }
 
-/** The PATCH for one user in a bulk edit. Never disables the admin's own account,
- *  and never changes a root account's type, which ABS rejects. */
+/** The PATCH for one user in a bulk edit. Never disables or retypes the admin's own
+ *  account, and never touches a root account's type or enabled state, which ABS
+ *  rejects. */
 export function bulkUserPatch(
   user: Pick<ABSAdminUser, 'id' | 'type'>,
   values: BulkUserValues,
   selfId: string | null | undefined,
 ): Partial<UserFormValues> {
-  const patch: Partial<UserFormValues> = {
-    permissions: values.permissions,
-    isActive: user.id === selfId ? true : values.isActive,
+  const patch: Partial<UserFormValues> = { permissions: values.permissions }
+  const isSelf = user.id === selfId
+  if (user.type !== 'root') {
+    patch.isActive = isSelf ? true : values.isActive
+    if (!isSelf) patch.type = values.type
   }
-  if (user.type !== 'root') patch.type = values.type
   return patch
 }
 

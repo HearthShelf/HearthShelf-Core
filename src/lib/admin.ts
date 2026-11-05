@@ -9,6 +9,7 @@ export function isAdminAccountType(type: string | null | undefined): boolean {
 
 /** A file or library size for display: "812 KB", "42 MB", "1.3 GB". */
 export function fmtBytes(bytes: number): string {
+  if (bytes <= 0) return '0 KB'
   const mb = bytes / (1024 * 1024)
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`
   if (mb >= 1) return `${mb.toFixed(0)} MB`

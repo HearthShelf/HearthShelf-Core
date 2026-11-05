@@ -415,6 +415,8 @@ export interface ABSAdminUser {
   createdAt: number
   permissions?: ABSUserPermissions
   librariesAccessible?: string[]
+  /** ABS sends this at the top level, not inside permissions. */
+  itemTagsSelected?: string[]
 }
 
 export interface ABSUsersResponse {
