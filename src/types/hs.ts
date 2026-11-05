@@ -59,6 +59,7 @@ export interface HSRuntimeInfo {
   serverName: string | null
   serverId: string
   hsVersion: string | null
+  absVersion?: string | null
   // AIO first-run only: whether the wizard can offer "Restore from backup"
   // (ABS is up and has no root yet). False on slim/hosted and on a set-up box.
   restoreAvailable?: boolean

@@ -106,7 +106,48 @@ export const ABS_ENDPOINTS = {
   // Authors / Series
   author: (authorId: string) => `/api/authors/${authorId}`,
   authorImage: (authorId: string) => `/api/authors/${authorId}/image`,
-  series: (seriesId: string) => `/api/series/${seriesId}`
+  series: (seriesId: string) => `/api/series/${seriesId}`,
+
+  // Server administration (admin or root accounts only)
+  users: '/api/users',
+  user: (userId: string) => `/api/users/${userId}`,
+  usersOnline: '/api/users/online',
+  userListeningStats: (userId: string) => `/api/users/${userId}/listening-stats`,
+  userListeningSessions: (userId: string) => `/api/users/${userId}/listening-sessions`,
+  listeningSession: (sessionId: string) => `/api/sessions/${sessionId}`,
+  librariesOrder: '/api/libraries/order',
+  libraryScan: (libraryId: string) => `/api/libraries/${libraryId}/scan`,
+  libraryMatchAll: (libraryId: string) => `/api/libraries/${libraryId}/matchall`,
+  libraryRemoveMetadata: (libraryId: string) => `/api/libraries/${libraryId}/remove-metadata`,
+  libraryStats: (libraryId: string) => `/api/libraries/${libraryId}/stats`,
+  filesystem: '/api/filesystem',
+  searchProviders: '/api/search/providers',
+  customMetadataProviders: '/api/custom-metadata-providers',
+  serverSettings: '/api/settings',
+  authSettings: '/api/auth-settings',
+  serverStats: '/api/stats/server',
+  backups: '/api/backups',
+  backup: (backupId: string) => `/api/backups/${backupId}`,
+  backupDownload: (backupId: string) => `/api/backups/${backupId}/download`,
+  backupApply: (backupId: string) => `/api/backups/${backupId}/apply`,
+  backupUpload: '/api/backups/upload',
+  apiKeys: '/api/api-keys',
+  apiKey: (keyId: string) => `/api/api-keys/${keyId}`,
+  notifications: '/api/notifications',
+  notification: (notificationId: string) => `/api/notifications/${notificationId}`,
+  emailSettings: '/api/emails/settings',
+  emailTest: '/api/emails/test',
+  emailEreaderDevices: '/api/emails/ereader-devices',
+  tags: '/api/tags',
+  tagRename: '/api/tags/rename',
+  /** DELETE. Pass the name through encodeNamePathParam. */
+  tag: (encodedName: string) => `/api/tags/${encodedName}`,
+  genres: '/api/genres',
+  genreRename: '/api/genres/rename',
+  /** DELETE. Pass the name through encodeNamePathParam. */
+  genre: (encodedName: string) => `/api/genres/${encodedName}`,
+  feeds: '/api/feeds',
+  feedClose: (feedId: string) => `/api/feeds/${feedId}/close`
 } as const
 
 // --- Socket.io event names -----------------------------------------------
@@ -276,7 +317,27 @@ export const HS_ENDPOINTS = {
   hostedDisconnect: '/hs/hosted/disconnect',
   hostedInvite: '/hs/hosted/invite',
   hostedRecoverAdmins: '/hs/hosted/recover-admins',
-  hostedRecoverSecret: '/hs/hosted/recover-secret'
+  hostedRecoverSecret: '/hs/hosted/recover-secret',
+
+  // Server administration (admin or root accounts only)
+  jobs: '/hs/jobs',
+  jobRun: (jobId: string) => `/hs/jobs/${jobId}/run`,
+  jobCancel: (jobId: string) => `/hs/jobs/${jobId}/cancel`,
+  jobRunLogs: (runId: string) => `/hs/jobs/runs/${runId}/logs`,
+  backups: '/hs/backups',
+  backupsConfig: '/hs/backups/config',
+  backupsUpload: '/hs/backups/upload',
+  backup: (backupId: string) => `/hs/backups/${backupId}`,
+  backupDownload: (backupId: string) => `/hs/backups/${backupId}/download`,
+  backupRestore: (backupId: string) => `/hs/backups/${backupId}/restore`,
+  archive: '/hs/archive',
+  archiveRestore: '/hs/archive/restore',
+  serverActivity: '/hs/stats/server-activity',
+  hostedInvites: '/hs/hosted/invites',
+  hostedInvitesRevoke: '/hs/hosted/invites/revoke',
+  hostedLinkedUsers: '/hs/hosted/linked-users',
+  hostedRemoveUser: '/hs/hosted/remove-user',
+  hostedServiceHealth: '/hs/hosted/service-health'
 } as const
 
 export type ABSEndpoints = typeof ABS_ENDPOINTS
