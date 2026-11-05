@@ -141,6 +141,16 @@ function isNavItems(v: unknown): boolean {
   )
 }
 
+// True if v is a valid webNavHidden list: menu ids, capped so a client can't store
+// an unbounded list. Which ids exist stays platform-side; unknown ones are ignored.
+function isWebNavHidden(v: unknown): boolean {
+  return (
+    Array.isArray(v) &&
+    v.length <= 64 &&
+    v.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 64)
+  )
+}
+
 // Default bottom-nav arrangement: the tabs pinned before the nav became
 // customizable stay on the bar, and every More-menu destination keeps its place
 // in the menu. Duplicated from mobile's DEFAULT_NAV_ITEMS as a plain literal so
@@ -627,6 +637,15 @@ const DEFS: SettingDef[] = [
     type: 'json',
     validate: isNavItems,
     default: DEFAULT_NAV_ITEMS,
+  },
+  // The left-menu items and sections hidden on the web. Account scope, so the
+  // same trimmed menu follows the user to every browser.
+  {
+    key: 'webNavHidden',
+    scope: 'account',
+    type: 'json',
+    validate: isWebNavHidden,
+    default: [],
   },
 
   // --- Notifications (account) ---
