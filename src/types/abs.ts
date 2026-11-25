@@ -174,6 +174,14 @@ export interface ABSLibraryItem {
   libraryId: string
   folderId: string
   path: string
+  // Path relative to the library folder. Present on every ABS item JSON
+  // (minified and expanded); optional only because some clients build stub
+  // items locally.
+  relPath?: string
+  // Filesystem inode of the item's folder (or file, for single-file items), as a
+  // string. Two items with the same ino in the same library folder are one folder
+  // ABS recorded twice - see lib/duplicates.ts. Optional for the same reason.
+  ino?: string | null
   mediaType: string
   media: ABSBookMedia
   addedAt: number
@@ -609,6 +617,17 @@ export interface ABSMediaProgress {
   // books by recency (newest-touched first). Optional: locally-built stub rows
   // may omit it.
   lastUpdate?: number
+  // The rest of ABS's progress JSON (MediaProgress.getOldMediaProgress). Always
+  // sent by ABS; optional because clients build stub rows locally.
+  /** MediaProgress row id - the id DELETE /api/me/progress/:id wants. */
+  id?: string
+  /** Set for podcast episodes; null/absent for books. */
+  episodeId?: string | null
+  hideFromContinueListening?: boolean
+  ebookLocation?: string | null
+  ebookProgress?: number | null
+  startedAt?: number
+  finishedAt?: number | null
 }
 
 // GET /api/me - the caller's full progress list, for library filter chips

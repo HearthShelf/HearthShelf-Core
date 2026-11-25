@@ -43,10 +43,18 @@ export const ABS_ENDPOINTS = {
   meListeningSessions: '/api/me/listening-sessions',
   meListeningStats: '/api/me/listening-stats',
   meItemsInProgress: '/api/me/items-in-progress',
+  /** POST { time, title } - add a bookmark to an item for the caller. */
+  meItemBookmark: (libraryItemId: string) => `/api/me/item/${libraryItemId}/bookmark`,
   /** GET one media progress. */
-  meProgress: (libraryItemId: string, episodeId?: string) => (episodeId ? `/api/me/progress/${libraryItemId}/${episodeId}` : `/api/me/progress/${libraryItemId}`),
+  meProgress: (libraryItemId: string, episodeId?: string) =>
+    episodeId
+      ? `/api/me/progress/${libraryItemId}/${episodeId}`
+      : `/api/me/progress/${libraryItemId}`,
   /** PATCH create/update progress. NO last-writer-wins guard - see ABS_OFFLINE_SYNC_RULES. */
-  meProgressUpdate: (libraryItemId: string, episodeId?: string) => (episodeId ? `/api/me/progress/${libraryItemId}/${episodeId}` : `/api/me/progress/${libraryItemId}`),
+  meProgressUpdate: (libraryItemId: string, episodeId?: string) =>
+    episodeId
+      ? `/api/me/progress/${libraryItemId}/${episodeId}`
+      : `/api/me/progress/${libraryItemId}`,
   /** PATCH batch progress. NO guard; per-item errors silently skipped. */
   meProgressBatchUpdate: '/api/me/progress/batch/update',
   /** DELETE a progress record (id = MediaProgress id, not library item id). */
@@ -56,7 +64,8 @@ export const ABS_ENDPOINTS = {
   /** Start a playback session for an item. */
   itemPlay: (libraryItemId: string) => `/api/items/${libraryItemId}/play`,
   /** Start a playback session for a podcast episode. */
-  itemPlayEpisode: (libraryItemId: string, episodeId: string) => `/api/items/${libraryItemId}/play/${episodeId}`,
+  itemPlayEpisode: (libraryItemId: string, episodeId: string) =>
+    `/api/items/${libraryItemId}/play/${episodeId}`,
   /** Live sync of an OPEN session. Body { currentTime, timeListened (delta!), duration? }. */
   sessionSync: (sessionId: string) => `/api/session/${sessionId}/sync`,
   /** Close an open session (optional final sync body). */
@@ -93,6 +102,13 @@ export const ABS_ENDPOINTS = {
   // extension and mis-handle the cross-origin auth.
   itemEbook: (libraryItemId: string) => `/api/items/${libraryItemId}/ebook`,
   itemsBatchGet: '/api/items/batch/get',
+  /**
+   * DELETE one library item's database record. Files stay on disk UNLESS the
+   * caller adds `?hard=1`, which deletes the item's whole folder. Never add
+   * hard=1 when removing a duplicate entry: it shares that folder with the copy
+   * being kept (see lib/duplicates.ts).
+   */
+  itemDelete: (libraryItemId: string) => `/api/items/${libraryItemId}`,
 
   // Collections / Playlists
   collections: '/api/collections',
@@ -101,7 +117,8 @@ export const ABS_ENDPOINTS = {
   playlist: (playlistId: string) => `/api/playlists/${playlistId}`,
 
   // Podcasts
-  podcastEpisode: (libraryItemId: string, episodeId: string) => `/api/podcasts/${libraryItemId}/episode/${episodeId}`,
+  podcastEpisode: (libraryItemId: string, episodeId: string) =>
+    `/api/podcasts/${libraryItemId}/episode/${episodeId}`,
 
   // Authors / Series
   author: (authorId: string) => `/api/authors/${authorId}`,
@@ -147,7 +164,7 @@ export const ABS_ENDPOINTS = {
   /** DELETE. Pass the name through encodeNamePathParam. */
   genre: (encodedName: string) => `/api/genres/${encodedName}`,
   feeds: '/api/feeds',
-  feedClose: (feedId: string) => `/api/feeds/${feedId}/close`
+  feedClose: (feedId: string) => `/api/feeds/${feedId}/close`,
 } as const
 
 // --- Socket.io event names -----------------------------------------------
@@ -166,7 +183,7 @@ export const ABS_SOCKET_EVENTS = {
   libraryUpdated: 'library_updated',
   streamReset: 'stream_reset',
   taskStarted: 'task_started',
-  taskFinished: 'task_finished'
+  taskFinished: 'task_finished',
 } as const
 
 // --- Offline sync rules ---------------------------------------------------
@@ -195,7 +212,7 @@ export const ABS_OFFLINE_SYNC_RULES = {
   /** PATCH /api/me/progress/batch/update - always applies; per-item errors silently dropped. */
   meProgressBatchUpdate: { lastWriterWinsGuard: false, reportsPerItemResults: false },
   /** POST /api/session/:id/sync - open session assumed authoritative. timeListened is a DELTA. */
-  sessionSync: { lastWriterWinsGuard: false, reportsPerItemResults: false }
+  sessionSync: { lastWriterWinsGuard: false, reportsPerItemResults: false },
 } as const
 
 /**
@@ -210,7 +227,13 @@ export const ABS_OFFLINE_FLUSH_ENDPOINT = ABS_ENDPOINTS.sessionLocalAll
  * guard to reconcile it right. `updatedAt` (epoch ms) must reflect when the
  * listening happened, not "now" at flush time - the #1 offline-sync bug.
  */
-export const ABS_OFFLINE_SESSION_REQUIRED_FIELDS = ['id', 'libraryItemId', 'currentTime', 'timeListening', 'updatedAt'] as const
+export const ABS_OFFLINE_SESSION_REQUIRED_FIELDS = [
+  'id',
+  'libraryItemId',
+  'currentTime',
+  'timeListening',
+  'updatedAt',
+] as const
 
 // --- HearthShelf-native endpoints (/hs/*) --------------------------------
 //
@@ -337,7 +360,7 @@ export const HS_ENDPOINTS = {
   hostedInvitesRevoke: '/hs/hosted/invites/revoke',
   hostedLinkedUsers: '/hs/hosted/linked-users',
   hostedRemoveUser: '/hs/hosted/remove-user',
-  hostedServiceHealth: '/hs/hosted/service-health'
+  hostedServiceHealth: '/hs/hosted/service-health',
 } as const
 
 export type ABSEndpoints = typeof ABS_ENDPOINTS
